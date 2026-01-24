@@ -1,0 +1,89 @@
+.title-bar {
+  display: flex;
+  height: 50px;
+  user-select: none;
+  position: relative;
+  z-index: 1000;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  overflow: hidden;
+}
+
+.title-bar-section {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.title-bar-left-section {
+  width: 240px;
+  background-color: #1a1a1a;
+  padding: 0 16px;
+  border-top-left-radius: 12px;
+}
+
+.title-bar-right-section {
+  flex: 1;
+  background-color: white;
+  border-top-right-radius: 12px;
+  justify-content: space-between;
+}
+
+.title-bar-logo {
+  height: 28px;
+  width: auto;
+}
+
+.title-bar-page-title {
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.title-bar-drag-region {
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+  cursor: move;
+}
+
+.title-bar-controls {
+  display: flex;
+  -webkit-app-region: no-drag;
+  height: 100%;
+}
+
+.title-bar-button {
+  width: 46px;
+  height: 100%;
+  border: none;
+  background-color: transparent;
+  color: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  outline: none;
+}
+
+.title-bar-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.title-bar-button.close:hover {
+  background-color: #e81123;
+  color: white;
+}
+
+.title-bar-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.title-bar-button svg path,
+.title-bar-button svg rect {
+  stroke: currentColor;
+  fill: none;
+}

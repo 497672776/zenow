@@ -1,0 +1,30 @@
+- 新增
+    - 技术栈：electron+react+ts+vite
+    - 聊天页面,左上角显示当前使用模型，有输入框
+    - 设置页面，可以设置模型
+- 新增
+    - 左侧多一个侧边栏，最上面有个logo：/home/liudecheng/zenow-test/zenow/frontend/src/assets/spacemit_ai.svg
+    - 左侧侧边栏还有，一些：新对话，知识库，历史聊天，左下角有设置,分别用
+        - /home/liudecheng/zenow-test/zenow/frontend/src/assets/left-newchat.svg
+        - /home/liudecheng/zenow-test/zenow/frontend/src/assets/left-kb.svg
+        - /home/liudecheng/zenow-test/zenow/frontend/src/assets/left-history.svg
+        - /home/liudecheng/zenow-test/zenow/frontend/src/assets/left-setting.svg
+- 新增
+    - 关掉ApplicationMenu
+    - 隐藏系统标题栏 → 自绘一个“看起来像原生”的，但是还是要有左上角和右上角都是圆角
+- 新增
+    - 这些最小化按钮，最大化/还原按钮，关闭按钮，没看到，我希望在右上角
+    - 现在是左下角和右下角是圆角，但是左上角和右上角不是哦
+- 新增
+    - 保证左上角是那个spacemit, 而右上角是这些最小化按钮，最大化/还原按钮，关闭按钮，他们是一个高度
+- 新增
+    - 最上面那个标题栏高度调高，且希望标题栏左边是灰色，和下面的颜色，保持一致，右边是白色
+- 新增
+    - 标题栏现在分成了左右两边，我希望右边的那个的靠左可以在切换页面的时候，会显示对应页面的，如知识库，历史聊天，新对话，设置
+- 新增
+    - 删除每个page页面的标题内容，已经被标题栏替换了
+- 新增
+    - 在设置界面中可以通过加入gguf下载链接，或者浏览路径，来加入模型选择
+    - 可以在设置界面看到模型的状态，包括什么模型，未启动（红灯），启动（黄灯）中还是启动好了（绿灯）
+- 新增
+    - 浏览路径的时候，可以开个文件浏览窗口，让用户直接选择某个文件

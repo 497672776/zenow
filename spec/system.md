@@ -1,0 +1,9 @@
+- 新增
+    - 实现llm聊天功能
+    - 前后端分离：使用fastapi
+    - npm run back: 开启前端
+    - npm run front：开启后端
+    - npm run all：开启前后端
+    - 每个文件不能超过1000行
+- 新增
+    - 后端关闭，

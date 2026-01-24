@@ -1,0 +1,29 @@
+.knowledge-base-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: white;
+}
+
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder {
+  text-align: center;
+  color: #999;
+}
+
+.placeholder h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.placeholder p {
+  font-size: 16px;
+}

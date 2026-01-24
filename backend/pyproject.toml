@@ -1,0 +1,20 @@
+[project]
+name = "zenow-backend"
+version = "0.1.0"
+description = "Backend API for Zenow LLM Chat"
+requires-python = "==3.12.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "openai>=1.3.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
