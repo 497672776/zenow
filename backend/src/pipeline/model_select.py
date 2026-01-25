@@ -233,11 +233,18 @@ class ModelSelectionPipeline:
     async def _update_database(self, model_name: str, model_path: str) -> None:
         """Update model info in database"""
         try:
+            from pathlib import Path
+
             existing_model = self.db_config.get_model_by_name(model_name)
 
             if existing_model:
                 model_id = existing_model["id"]
                 logger.info(f"Model exists in DB: {model_name} (ID: {model_id})")
+
+                # 检查文件是否存在并更新 is_downloaded 状态
+                is_downloaded = Path(model_path).exists()
+                self.db_config.update_model_download_status(model_id, is_downloaded)
+                logger.info(f"Updated download status: is_downloaded={is_downloaded}")
             else:
                 model_id = self.db_config.add_model(model_name, model_path)
                 logger.info(f"Added model to DB: {model_name} (ID: {model_id})")

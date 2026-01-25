@@ -102,34 +102,54 @@ class BackendStartupHandler:
             logger.info("  Database will be created but empty")
             return
 
-        # Get first default model URL
-        default_url = self.config.DEFAULT_MODEL_DOWNLOAD_URLS[0]
-        filename = default_url.split('/')[-1]
-        model_name = filename.replace('.gguf', '').replace('.GGUF', '')
-        model_path = self.config.MODELS_DIR / filename
+        # Add all default models from config.py
+        logger.info(f"Adding {len(self.config.DEFAULT_MODEL_DOWNLOAD_URLS)} default models from config.py:")
 
-        logger.info(f"Default model from config.py:")
-        logger.info(f"  Name: {model_name}")
-        logger.info(f"  URL: {default_url}")
-        logger.info(f"  Path: {model_path}")
+        first_model_id = None
+        added_count = 0
 
-        # Check if model file exists
-        if not model_path.exists():
-            logger.warning(f"⚠ Model file not found at: {model_path}")
-            logger.info("  The model will need to be downloaded via the UI")
+        for idx, default_url in enumerate(self.config.DEFAULT_MODEL_DOWNLOAD_URLS, 1):
+            try:
+                filename = default_url.split('/')[-1]
+                model_name = filename.replace('.gguf', '').replace('.GGUF', '')
+                model_path = self.config.MODELS_DIR / filename
 
-        try:
-            # Add model to database
-            model_id = self.db_config.add_model(model_name, str(model_path))
-            logger.info(f"✓ Added model to database (ID: {model_id})")
+                logger.info(f"  [{idx}] {model_name}")
+                logger.info(f"      URL: {default_url}")
+                logger.info(f"      Path: {model_path}")
 
-            # Set as current model
-            self.db_config.set_current_model(model_id)
-            logger.info(f"✓ Set as current model")
-            logger.info("✓ config.db created successfully")
+                # Check if model file exists
+                if not model_path.exists():
+                    logger.warning(f"      ⚠ File not found (will need download)")
+                else:
+                    logger.info(f"      ✓ File exists")
 
-        except Exception as e:
-            logger.error(f"✗ Failed to create database: {e}", exc_info=True)
+                # Add model to database
+                model_id = self.db_config.add_model(model_name, str(model_path))
+                logger.info(f"      ✓ Added to database (ID: {model_id})")
+
+                # Remember first model ID to set as current
+                if first_model_id is None:
+                    first_model_id = model_id
+
+                added_count += 1
+
+            except Exception as e:
+                logger.error(f"      ✗ Failed to add model: {e}")
+                continue
+
+        # Set first model as current
+        if first_model_id is not None:
+            try:
+                self.db_config.set_current_model(first_model_id)
+                logger.info(f"✓ Set first model as current (ID: {first_model_id})")
+            except Exception as e:
+                logger.error(f"✗ Failed to set current model: {e}")
+
+        if added_count > 0:
+            logger.info(f"✓ config.db created successfully with {added_count} models")
+        else:
+            logger.warning("⚠ config.db created but no models were added")
 
     def _load_parameters_from_db(self):
         """

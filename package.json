@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "front": "cd frontend && npm run dev",
-    "back": "cd backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8050 --log-level debug",
+    "back": "cd backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8050",
     "all": "concurrently \"npm run back\" \"npm run front\" --names \"backend,frontend\" --prefix-colors \"blue,green\" 2>&1 | tee test.log"
   },
   "devDependencies": {

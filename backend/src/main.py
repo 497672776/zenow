@@ -127,6 +127,7 @@ class ModelInfo(BaseModel):
     id: int
     name: str
     path: str
+    is_downloaded: bool
 
 class ModelListResponse(BaseModel):
     models: List[ModelInfo]
@@ -215,7 +216,8 @@ async def get_models():
             ModelInfo(
                 id=m["id"],
                 name=m["model_name"],
-                path=m["model_path"]
+                path=m["model_path"],
+                is_downloaded=bool(m.get("is_downloaded", False))
             )
             for m in models
         ]
@@ -225,7 +227,8 @@ async def get_models():
             current_model_info = ModelInfo(
                 id=current["id"],
                 name=current["model_name"],
-                path=current["model_path"]
+                path=current["model_path"],
+                is_downloaded=bool(current.get("is_downloaded", False))
             )
 
         return ModelListResponse(

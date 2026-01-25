@@ -10,6 +10,7 @@ interface ModelInfo {
   name: string
   path: string
   status: string
+  is_downloaded: boolean
 }
 
 interface ModelListResponse {
@@ -163,12 +164,6 @@ function SettingsPage() {
     return '未启动'
   }
 
-  const isModelDownloaded = (url: string) => {
-    const filename = url.split('/').pop() || ''
-    const modelName = filename.replace(/\.gguf$/i, '')
-    return models.some(m => m.name === modelName)
-  }
-
   const handleSelectModel = async (modelName: string, downloadUrl?: string) => {
     try {
       setMessage(downloadUrl ? '正在下载并激活模型...' : '正在切换模型...')
@@ -218,15 +213,13 @@ function SettingsPage() {
             </div>
 
             <ModelDropdown
-            models={[
+            models={Array.from(new Set([
               ...models.map(m => m.name),
-              ...defaultUrls
-                .filter(url => !isModelDownloaded(url))
-                .map(url => {
-                  const filename = url.split('/').pop() || ''
-                  return filename.replace(/\.gguf$/i, '')
-                })
-            ]}
+              ...defaultUrls.map(url => {
+                const filename = url.split('/').pop() || ''
+                return filename.replace(/\.gguf$/i, '')
+              })
+            ]))}
             selectedModel={currentModel?.name || ''}
             onSelect={(modelName) => {
               // Select model (already downloaded)
@@ -243,7 +236,7 @@ function SettingsPage() {
               }
             }}
             isDownloaded={(modelName) => {
-              return models.some(m => m.name === modelName)
+              return models.some(m => m.name === modelName && m.is_downloaded)
             }}
             label=""
             showDownloadProgress={false}

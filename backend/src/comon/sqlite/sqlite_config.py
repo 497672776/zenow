@@ -23,6 +23,7 @@ class SQLiteConfig(SQLiteBase):
                 model_name TEXT NOT NULL,
                 model_path TEXT NOT NULL,
                 is_current BOOLEAN DEFAULT 0,
+                is_downloaded BOOLEAN DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -41,10 +42,18 @@ class SQLiteConfig(SQLiteBase):
 
     # Model configuration methods
     def add_model(self, model_name: str, model_path: str) -> int:
-        """Add a new model to the configuration"""
+        """
+        Add a new model to the configuration
+        自动检查文件是否存在，设置 is_downloaded 状态
+        """
+        from pathlib import Path
+
+        # 检查文件是否存在
+        is_downloaded = Path(model_path).exists()
+
         cursor = self.execute(
-            "INSERT INTO model_config (model_name, model_path) VALUES (?, ?)",
-            (model_name, model_path)
+            "INSERT INTO model_config (model_name, model_path, is_downloaded) VALUES (?, ?, ?)",
+            (model_name, model_path, is_downloaded)
         )
         return cursor.lastrowid
 
@@ -70,6 +79,7 @@ class SQLiteConfig(SQLiteBase):
                 model_name,
                 model_path,
                 is_current,
+                is_downloaded,
                 created_at,
                 updated_at
             FROM model_config
@@ -85,6 +95,7 @@ class SQLiteConfig(SQLiteBase):
                 model_name,
                 model_path,
                 is_current,
+                is_downloaded,
                 created_at,
                 updated_at
             FROM model_config
@@ -102,6 +113,45 @@ class SQLiteConfig(SQLiteBase):
             (model_id,)
         )
         return True
+
+    def update_model_download_status(self, model_id: int, is_downloaded: bool) -> bool:
+        """
+        更新模型的下载状态
+
+        Args:
+            model_id: 模型 ID
+            is_downloaded: 是否已下载
+
+        Returns:
+            更新是否成功
+        """
+        self.execute(
+            "UPDATE model_config SET is_downloaded = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (is_downloaded, model_id)
+        )
+        return True
+
+    def check_and_update_download_status(self, model_id: int) -> bool:
+        """
+        检查文件是否存在并更新下载状态
+
+        Args:
+            model_id: 模型 ID
+
+        Returns:
+            文件是否存在
+        """
+        from pathlib import Path
+
+        model = self.get_model(model_id)
+        if not model:
+            return False
+
+        model_path = Path(model['model_path'])
+        is_downloaded = model_path.exists()
+
+        self.update_model_download_status(model_id, is_downloaded)
+        return is_downloaded
 
     def delete_model(self, model_id: int) -> bool:
         """Delete a model from configuration"""
