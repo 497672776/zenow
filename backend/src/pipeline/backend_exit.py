@@ -44,26 +44,21 @@ class BackendExitHandler:
         logger.info("Backend exiting, cleaning up llama-server...")
         try:
             # Stop the LLM server if running
-            if self.llm_server.process is not None:
-                logger.info("Stopping llama-server process...")
-                self.llm_server.stop_server()
-                logger.info("✓ llama-server stopped successfully")
-            else:
-                logger.info("No llama-server process tracked")
+            self.llm_server.stop_server()
 
             # Additional cleanup: kill any remaining llama-server processes
             # This catches any orphaned or zombie processes
-            import subprocess
-            try:
-                result = subprocess.run(
-                    ["pkill", "-9", "llama-server"],
-                    capture_output=True,
-                    text=True
-                )
-                if result.returncode == 0:
-                    logger.info("✓ Killed any remaining llama-server processes")
-            except Exception as e:
-                logger.debug(f"pkill command failed (this is OK if no processes): {e}")
+            # import subprocess
+            # try:
+            #     result = subprocess.run(
+            #         ["pkill", "-9", "llama-server"],
+            #         capture_output=True,
+            #         text=True
+            #     )
+            #     if result.returncode == 0:
+            #         logger.info("✓ Killed any remaining llama-server processes")
+            # except Exception as e:
+            #     logger.debug(f"pkill command failed (this is OK if no processes): {e}")
 
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")

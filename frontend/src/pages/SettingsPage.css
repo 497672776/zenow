@@ -36,6 +36,97 @@
   font-size: 14px;
 }
 
+/* Model Selector with inline status */
+.model-selector-with-status {
+  margin-bottom: 20px;
+}
+
+.model-label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.model-label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.status-light-inline {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+}
+
+.status-text-inline {
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
+}
+
+.model-selector-with-status .model-dropdown-container {
+  margin-bottom: 0;
+}
+
+/* Model Status Display with Traffic Light */
+.model-status-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 2px solid #ecf0f1;
+}
+
+.status-light-large {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-line {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.status-line:last-child {
+  margin-bottom: 0;
+}
+
+.status-line strong {
+  margin-right: 8px;
+}
+
+/* Download Progress Section */
+.download-progress-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.progress-bar-large {
+  width: 100%;
+  height: 28px;
+  background-color: #ecf0f1;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
 /* Server Status */
 .server-status-info {
   background-color: white;
@@ -143,6 +234,20 @@
 
 .add-model-button:hover {
   background-color: #2980b9;
+}
+
+.quick-download-section {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 2px solid #3498db;
+}
+
+.quick-download-section h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 16px;
 }
 
 .add-model-form {
@@ -334,4 +439,121 @@
   background-color: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
+}
+
+/* Default URLs dropdown */
+.default-urls {
+  margin-bottom: 15px;
+}
+
+.default-urls label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+/* Download Progress */
+.download-progress {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #ecf0f1;
+  border-radius: 6px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #2c3e50;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 24px;
+  background-color: #bdc3c7;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Parameter Configuration */
+.param-group {
+  margin-bottom: 30px;
+}
+
+.param-group h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding: 12px;
+  background-color: white;
+  border-radius: 6px;
+}
+
+.param-row label {
+  flex: 1;
+  font-size: 14px;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.param-row input[type="number"] {
+  width: 150px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.param-row input[type="number"]:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.apply-button {
+  width: 100%;
+  padding: 14px 24px;
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 20px;
+}
+
+.apply-button:hover {
+  background-color: #229954;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
+.apply-button:active {
+  transform: translateY(0);
 }

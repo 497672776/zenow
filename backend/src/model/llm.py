@@ -23,27 +23,27 @@ MODEL_STATUS_STOPPED = "stopped"
 
 
 class LLMServer:
-    """LLM Server management class"""
+    """LLM Server 管理类"""
 
     def __init__(
         self,
         host: str,
         port: int,
-        context_size: int,
-        threads: int,
+        context_size: int,  # LLMServer 参数：上下文窗口大小
+        threads: int,       # LLMServer 参数：CPU 线程数
         gpu_layers: int,
-        batch_size: int,
+        batch_size: int,    # LLMServer 参数：批处理大小
     ):
         """
-        Initialize LLM Server
+        初始化 LLM Server
 
         Args:
-            host: Server host address
-            port: Server port number
-            context_size: Context window size
-            threads: Number of CPU threads
-            gpu_layers: Number of GPU layers
-            batch_size: Batch size for processing
+            host: 服务器主机地址
+            port: 服务器端口号
+            context_size: 上下文窗口大小（启动 llama-server 时使用）
+            threads: CPU 线程数（启动 llama-server 时使用）
+            gpu_layers: GPU 层数
+            batch_size: 批处理大小（启动 llama-server 时使用）
         """
         self.host = host
         self.port = port
@@ -215,6 +215,73 @@ class LLMServer:
             "is_running": self.process is not None and self.process.poll() is None
         }
 
+    def update_parameters(
+        self,
+        context_size: Optional[int] = None,
+        threads: Optional[int] = None,
+        gpu_layers: Optional[int] = None,
+        batch_size: Optional[int] = None
+    ) -> bool:
+        """
+        更新 LLM Server 参数（需要重启进程才能生效）
+
+        Args:
+            context_size: 上下文窗口大小
+            threads: CPU 线程数
+            gpu_layers: GPU 层数
+            batch_size: 批处理大小
+
+        Returns:
+            True if parameters updated successfully
+        """
+        # 更新参数
+        if context_size is not None:
+            self.context_size = context_size
+        if threads is not None:
+            self.threads = threads
+        if gpu_layers is not None:
+            self.gpu_layers = gpu_layers
+        if batch_size is not None:
+            self.batch_size = batch_size
+
+        # 如果服务器正在运行，需要重启以应用新参数
+        if self.process is not None and self.current_model_path:
+            logger.info("LLMServer 参数已更新，重启进程以应用新配置...")
+            model_path = str(self.current_model_path)
+            model_name = self.current_model
+            return self.start_server(model_path, model_name)
+
+        logger.info("LLMServer 参数已更新（服务器未运行，启动时将应用新配置）")
+        return True
+
+    async def update_params(
+        self,
+        context_size: Optional[int] = None,
+        threads: Optional[int] = None,
+        gpu_layers: Optional[int] = None,
+        batch_size: Optional[int] = None
+    ) -> bool:
+        """
+        异步更新 LLM Server 参数（需要重启进程才能生效）
+
+        Args:
+            context_size: 上下文窗口大小
+            threads: CPU 线程数
+            gpu_layers: GPU 层数
+            batch_size: 批处理大小
+
+        Returns:
+            True if parameters updated successfully
+        """
+        import asyncio
+        return await asyncio.to_thread(
+            self.update_parameters,
+            context_size,
+            threads,
+            gpu_layers,
+            batch_size
+        )
+
     async def start(self, model_path: str, model_name: str) -> bool:
         """Async wrapper for start_server"""
         import asyncio
@@ -225,25 +292,30 @@ class LLMServer:
         import asyncio
         return await asyncio.to_thread(self.stop_server)
 
+    async def switch(self, model_path: str, model_name: str) -> bool:
+        """Async wrapper for switch_model"""
+        import asyncio
+        return await asyncio.to_thread(self.switch_model, model_path, model_name)
+
 
 class LLMClient:
-    """LLM Client for interacting with the LLM server"""
+    """LLM Client 用于与 LLM server 交互"""
 
     def __init__(
         self,
         base_url: str,
-        temperature: float,
-        repeat_penalty: float,
-        max_tokens: int
+        temperature: float,      # LLMClient 参数：采样温度
+        repeat_penalty: float,   # LLMClient 参数：重复惩罚
+        max_tokens: int          # LLMClient 参数：最大生成 token 数
     ):
         """
-        Initialize LLM Client
+        初始化 LLM Client
 
         Args:
-            base_url: Base URL of the LLM server
-            temperature: Sampling temperature
-            repeat_penalty: Repetition penalty
-            max_tokens: Maximum tokens to generate
+            base_url: LLM server 的基础 URL
+            temperature: 采样温度（调用 API 时使用）
+            repeat_penalty: 重复惩罚（调用 API 时使用）
+            max_tokens: 最大生成 token 数（调用 API 时使用）
         """
         self.base_url = base_url
         self.temperature = temperature

@@ -1,7 +1,14 @@
 import { app, BrowserWindow, Menu, ipcMain, dialog } from 'electron'
 import path from 'path'
+import fs from 'fs'
+import os from 'os'
 
 const isDev = process.env.NODE_ENV === 'development'
+
+// Disable certificate verification in development (for localhost SSL errors)
+if (isDev) {
+  app.commandLine.appendSwitch('ignore-certificate-errors')
+}
 
 function createWindow() {
   // Disable application menu
@@ -37,6 +44,15 @@ function createWindow() {
     mainWindow.close()
   })
 
+  // 监听窗口最大化/还原事件，通知渲染进程
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-maximized', true)
+  })
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-maximized', false)
+  })
+
   // File dialog handler
   ipcMain.handle('dialog:openFile', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -51,6 +67,51 @@ function createWindow() {
       return result.filePaths[0]
     }
     return null
+  })
+
+  // Read backend port file
+  ipcMain.handle('read-port-file', async () => {
+    try {
+      const portFile = path.join(os.homedir(), '.config', 'zenow', 'backend.port')
+      if (fs.existsSync(portFile)) {
+        const content = fs.readFileSync(portFile, 'utf-8')
+        return content
+      }
+    } catch (error) {
+      console.error('Failed to read port file:', error)
+    }
+    return null
+  })
+
+  // Check if process is running
+  ipcMain.handle('check-process-running', async (_event, pid: number) => {
+    try {
+      // On Unix-like systems, sending signal 0 checks if process exists
+      process.kill(pid, 0)
+      return true
+    } catch (error) {
+      return false
+    }
+  })
+
+  // Forward renderer console to main process terminal
+  ipcMain.on('log', (_event, args) => {
+    const [level, ...rest] = args
+    const prefix = '[renderer]'
+
+    switch (level) {
+      case 'log':
+        console.log(prefix, ...rest)
+        break
+      case 'warn':
+        console.warn(prefix, ...rest)
+        break
+      case 'error':
+        console.error(prefix, ...rest)
+        break
+      default:
+        console.log(prefix, ...args)
+    }
   })
 
   if (isDev) {

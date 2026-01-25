@@ -1,5 +1,5 @@
 """
-SQLite database base class for Zenow backend
+SQLite 数据库基类，用于 Zenow 后端
 """
 import sqlite3
 from pathlib import Path
@@ -8,14 +8,14 @@ import threading
 
 
 class SQLiteBase:
-    """Base class for SQLite database operations"""
+    """SQLite 数据库操作基类"""
 
     def __init__(self, db_path: Path):
         """
-        Initialize SQLite database connection
+        初始化 SQLite 数据库连接
 
         Args:
-            db_path: Path to the SQLite database file
+            db_path: SQLite 数据库文件路径
         """
         self.db_path = db_path
         self._local = threading.local()
@@ -23,26 +23,26 @@ class SQLiteBase:
 
     @property
     def conn(self) -> sqlite3.Connection:
-        """Get thread-local database connection"""
+        """获取线程本地数据库连接"""
         if not hasattr(self._local, 'conn') or self._local.conn is None:
             self._local.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
             self._local.conn.row_factory = sqlite3.Row
         return self._local.conn
 
     def _init_db(self):
-        """Initialize database schema - to be implemented by subclasses"""
+        """初始化数据库模式 - 由子类实现"""
         pass
 
     def execute(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
         """
-        Execute a SQL query
+        执行 SQL 查询
 
         Args:
-            query: SQL query string
-            params: Query parameters
+            query: SQL 查询字符串
+            params: 查询参数
 
         Returns:
-            Cursor object
+            游标对象
         """
         cursor = self.conn.cursor()
         cursor.execute(query, params)
@@ -51,14 +51,14 @@ class SQLiteBase:
 
     def fetchone(self, query: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
         """
-        Fetch one row from query
+        从查询中获取一行数据
 
         Args:
-            query: SQL query string
-            params: Query parameters
+            query: SQL 查询字符串
+            params: 查询参数
 
         Returns:
-            Dictionary of row data or None
+            行数据字典，如果没有则返回 None
         """
         cursor = self.conn.cursor()
         cursor.execute(query, params)
@@ -69,14 +69,14 @@ class SQLiteBase:
 
     def fetchall(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
         """
-        Fetch all rows from query
+        从查询中获取所有行数据
 
         Args:
-            query: SQL query string
-            params: Query parameters
+            query: SQL 查询字符串
+            params: 查询参数
 
         Returns:
-            List of dictionaries containing row data
+            包含行数据的字典列表
         """
         cursor = self.conn.cursor()
         cursor.execute(query, params)
@@ -84,11 +84,11 @@ class SQLiteBase:
         return [dict(row) for row in rows]
 
     def close(self):
-        """Close database connection"""
+        """关闭数据库连接"""
         if hasattr(self._local, 'conn') and self._local.conn is not None:
             self._local.conn.close()
             self._local.conn = None
 
     def __del__(self):
-        """Destructor to ensure connection is closed"""
+        """析构函数，确保连接被关闭"""
         self.close()

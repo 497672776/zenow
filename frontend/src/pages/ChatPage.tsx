@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './ChatPage.css'
+import { getBackendBaseUrl } from '../utils/backendPort'
 
 // 消息接口定义：每条消息包含角色（用户/助手）和内容
 interface Message {
@@ -8,20 +9,22 @@ interface Message {
 }
 
 // 后端API的基础URL
-const API_BASE_URL = 'http://localhost:8000'
+let API_BASE_URL = 'http://localhost:8050' // Default fallback
 
 function ChatPage() {
   // ===== 状态管理 =====
   const [messages, setMessages] = useState<Message[]>([])  // 存储所有聊天消息
   const [input, setInput] = useState('')  // 用户当前输入的文本
-  const [currentModel, setCurrentModel] = useState('gpt-3.5-turbo')  // 当前使用的模型名称
   const [isLoading, setIsLoading] = useState(false)  // 是否正在等待AI回复
   const messagesEndRef = useRef<HTMLDivElement>(null)  // 用于滚动到消息底部的引用
 
   // ===== 生命周期：组件加载时执行 =====
   useEffect(() => {
-    // 组件首次加载时，获取当前使用的模型
-    fetchCurrentModel()
+    // 初始化后端 URL
+    getBackendBaseUrl().then(url => {
+      API_BASE_URL = url
+      console.log('Using backend URL:', API_BASE_URL)
+    })
   }, [])
 
   // ===== 生命周期：当消息列表变化时执行 =====
@@ -29,18 +32,6 @@ function ChatPage() {
     // 每当消息列表更新，自动滚动到最底部，显示最新消息
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  // ===== 获取当前模型 =====
-  const fetchCurrentModel = async () => {
-    try {
-      // 从后端API获取当前激活的模型信息
-      const response = await fetch(`${API_BASE_URL}/api/models/current`)
-      const data = await response.json()
-      setCurrentModel(data.model)
-    } catch (error) {
-      console.error('获取当前模型失败:', error)
-    }
-  }
 
   // ===== 发送消息的核心函数 =====
   const handleSend = async () => {

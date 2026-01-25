@@ -2,6 +2,11 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  /* 禁用拖动 */
+  -webkit-user-drag: none;
+  user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 body {
@@ -12,6 +17,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: transparent;
   overflow: hidden;
+}
+
+/* 对于输入框、文本区域和聊天消息，允许文本选择 */
+input,
+textarea,
+[contenteditable="true"],
+.message-content,
+.chat-message {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 #root {

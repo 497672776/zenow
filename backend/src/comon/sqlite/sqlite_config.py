@@ -15,8 +15,8 @@ class SQLiteConfig(SQLiteBase):
         super().__init__(db_path)
 
     def _init_db(self):
-        """Initialize configuration tables"""
-        # Model configuration table
+        """初始化配置表"""
+        # 模型配置表
         self.execute("""
             CREATE TABLE IF NOT EXISTS model_config (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,24 +28,13 @@ class SQLiteConfig(SQLiteBase):
             )
         """)
 
-        # LLM parameters table
+        # LLM 参数表
         self.execute("""
             CREATE TABLE IF NOT EXISTS llm_parameters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 parameter_name TEXT NOT NULL UNIQUE,
                 parameter_value TEXT NOT NULL,
                 parameter_type TEXT NOT NULL,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Model status table
-        self.execute("""
-            CREATE TABLE IF NOT EXISTS model_status (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                model_name TEXT NOT NULL,
-                status TEXT NOT NULL,
-                error_message TEXT,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -74,38 +63,32 @@ class SQLiteConfig(SQLiteBase):
         )
 
     def get_all_models(self) -> List[Dict[str, Any]]:
-        """Get all available models with their status"""
+        """获取所有可用模型"""
         query = """
             SELECT
-                mc.id,
-                mc.model_name,
-                mc.model_path,
-                mc.is_current,
-                mc.created_at,
-                mc.updated_at,
-                COALESCE(ms.status, 'not_started') as status,
-                ms.error_message
-            FROM model_config mc
-            LEFT JOIN model_status ms ON mc.model_name = ms.model_name
-            ORDER BY mc.created_at DESC
+                id,
+                model_name,
+                model_path,
+                is_current,
+                created_at,
+                updated_at
+            FROM model_config
+            ORDER BY created_at DESC
         """
         return self.fetchall(query)
 
     def get_current_model(self) -> Optional[Dict[str, Any]]:
-        """Get the current active model with its status"""
+        """获取当前活动模型"""
         query = """
             SELECT
-                mc.id,
-                mc.model_name,
-                mc.model_path,
-                mc.is_current,
-                mc.created_at,
-                mc.updated_at,
-                COALESCE(ms.status, 'not_started') as status,
-                ms.error_message
-            FROM model_config mc
-            LEFT JOIN model_status ms ON mc.model_name = ms.model_name
-            WHERE mc.is_current = 1
+                id,
+                model_name,
+                model_path,
+                is_current,
+                created_at,
+                updated_at
+            FROM model_config
+            WHERE is_current = 1
         """
         return self.fetchone(query)
 
@@ -183,21 +166,3 @@ class SQLiteConfig(SQLiteBase):
                 params[name] = value_str
 
         return params
-
-    # Model status methods
-    def update_model_status(self, model_name: str, status: str, error_message: Optional[str] = None) -> None:
-        """Update model status"""
-        # Delete old status for this model
-        self.execute("DELETE FROM model_status WHERE model_name = ?", (model_name,))
-        # Insert new status
-        self.execute(
-            "INSERT INTO model_status (model_name, status, error_message) VALUES (?, ?, ?)",
-            (model_name, status, error_message)
-        )
-
-    def get_model_status(self, model_name: str) -> Optional[Dict[str, Any]]:
-        """Get model status"""
-        return self.fetchone(
-            "SELECT * FROM model_status WHERE model_name = ? ORDER BY updated_at DESC LIMIT 1",
-            (model_name,)
-        )

@@ -17,6 +17,7 @@ from src.comon.sqlite.sqlite_config import SQLiteConfig
 from src.pipeline.model_select import ModelSelectionPipeline
 from src.pipeline.backend_exit import BackendExitHandler
 from src.pipeline.backend_start import BackendStartupHandler
+from src.pipeline.model_param_change import ModelParameterChangePipeline
 from src import config
 
 # Configure logging
@@ -101,7 +102,10 @@ exit_handler = BackendExitHandler(llm_server)
 exit_handler.register()
 
 # Register startup handler to initialize database and start model
-startup_handler = BackendStartupHandler(llm_server, db_config, config)
+startup_handler = BackendStartupHandler(llm_server, llm_client, db_config, config)
+
+# Register parameter change pipeline
+param_change_pipeline = ModelParameterChangePipeline(llm_server, llm_client, db_config)
 
 # Models
 class Message(BaseModel):
@@ -123,7 +127,6 @@ class ModelInfo(BaseModel):
     id: int
     name: str
     path: str
-    status: str
 
 class ModelListResponse(BaseModel):
     models: List[ModelInfo]
@@ -168,6 +171,33 @@ class SelectModelResponse(BaseModel):
     model_path: Optional[str]
     server_status: str
 
+class LLMParametersRequest(BaseModel):
+    # LLMServer 参数
+    context_size: Optional[int] = None
+    threads: Optional[int] = None
+    gpu_layers: Optional[int] = None
+    batch_size: Optional[int] = None
+    # LLMClient 参数
+    temperature: Optional[float] = None
+    repeat_penalty: Optional[float] = None
+    max_tokens: Optional[int] = None
+
+class LLMParametersResponse(BaseModel):
+    # LLMServer 参数
+    context_size: int
+    threads: int
+    gpu_layers: int
+    batch_size: int
+    # LLMClient 参数
+    temperature: float
+    repeat_penalty: float
+    max_tokens: int
+
+class UpdateParametersResponse(BaseModel):
+    success: bool
+    message: str
+    requires_restart: bool
+
 
 @app.get("/")
 async def root():
@@ -185,8 +215,7 @@ async def get_models():
             ModelInfo(
                 id=m["id"],
                 name=m["model_name"],
-                path=m["model_path"],
-                status=m["status"]
+                path=m["model_path"]
             )
             for m in models
         ]
@@ -196,8 +225,7 @@ async def get_models():
             current_model_info = ModelInfo(
                 id=current["id"],
                 name=current["model_name"],
-                path=current["model_path"],
-                status=current["status"]
+                path=current["model_path"]
             )
 
         return ModelListResponse(
@@ -305,8 +333,8 @@ async def switch_model(model_id: int):
         if not target_model:
             raise HTTPException(status_code=404, detail="Model not found")
 
-        # Switch model
-        success = llm_server.switch_model(
+        # Switch model (async)
+        success = await llm_server.switch(
             model_path=target_model["model_path"],
             model_name=target_model["model_name"]
         )
@@ -427,6 +455,55 @@ async def get_download_status(url: str):
 async def get_all_downloads():
     """Get status of all downloads"""
     return model_downloader.get_all_downloads()
+
+
+@app.get("/api/parameters", response_model=LLMParametersResponse)
+async def get_parameters():
+    """获取当前 LLM 参数配置"""
+    try:
+        return LLMParametersResponse(
+            # LLMServer 参数
+            context_size=llm_server.context_size,
+            threads=llm_server.threads,
+            gpu_layers=llm_server.gpu_layers,
+            batch_size=llm_server.batch_size,
+            # LLMClient 参数
+            temperature=llm_client.temperature,
+            repeat_penalty=llm_client.repeat_penalty,
+            max_tokens=llm_client.max_tokens
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/parameters", response_model=UpdateParametersResponse)
+async def update_parameters(request: LLMParametersRequest):
+    """
+    更新 LLM 参数配置
+
+    - LLMServer 参数（context_size, threads, gpu_layers, batch_size）需要重启服务
+    - LLMClient 参数（temperature, repeat_penalty, max_tokens）立即生效
+    """
+    try:
+        # 使用 pipeline 处理参数更新
+        result = await param_change_pipeline.apply_parameters(
+            context_size=request.context_size,
+            threads=request.threads,
+            gpu_layers=request.gpu_layers,
+            batch_size=request.batch_size,
+            temperature=request.temperature,
+            repeat_penalty=request.repeat_penalty,
+            max_tokens=request.max_tokens
+        )
+
+        return UpdateParametersResponse(
+            success=result["success"],
+            message=result["message"],
+            requires_restart=result["requires_restart"]
+        )
+    except Exception as e:
+        logger.error(f"Failed to update parameters: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

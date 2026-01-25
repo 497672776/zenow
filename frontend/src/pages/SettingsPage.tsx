@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import './SettingsPage.css'
+import { getBackendBaseUrl } from '../utils/backendPort'
+import ModelDropdown from '../components/ModelDropdown'
 
-const API_BASE_URL = 'http://localhost:8000'
+let API_BASE_URL = 'http://localhost:8050' // Default fallback
 
 interface ModelInfo {
   id: number
@@ -23,22 +25,55 @@ interface ServerStatus {
   error_message: string | null
 }
 
+interface DefaultDownloadUrls {
+  urls: string[]
+  browser_path: string
+}
+
+interface LLMParameters {
+  // LLMServer 参数
+  context_size: number
+  threads: number
+  gpu_layers: number
+  batch_size: number
+  // LLMClient 参数
+  temperature: number
+  repeat_penalty: number
+  max_tokens: number
+}
+
 function SettingsPage() {
   const [models, setModels] = useState<ModelInfo[]>([])
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
 
-  // Add model form state
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newModelName, setNewModelName] = useState('')
-  const [newModelPath, setNewModelPath] = useState('')
-  const [inputType, setInputType] = useState<'path' | 'url'>('path')
+  // Download state
+  const [defaultUrls, setDefaultUrls] = useState<string[]>([])
+
+  // LLM Parameters state
+  const [parameters, setParameters] = useState<LLMParameters>({
+    context_size: 15360,
+    threads: 8,
+    gpu_layers: 0,
+    batch_size: 512,
+    temperature: 0.7,
+    repeat_penalty: 1.1,
+    max_tokens: 2048
+  })
+  const [paramMessage, setParamMessage] = useState('')
 
   useEffect(() => {
+    // Initialize backend URL
+    getBackendBaseUrl().then(url => {
+      API_BASE_URL = url
+      console.log('Using backend URL:', API_BASE_URL)
+    })
+
     fetchModels()
     fetchServerStatus()
+    fetchDefaultUrls()
+    fetchParameters()
 
     // Poll server status every 2 seconds
     const interval = setInterval(fetchServerStatus, 2000)
@@ -67,349 +102,266 @@ function SettingsPage() {
     }
   }
 
-  const handleAddModel = async () => {
-    if (!newModelName.trim() || !newModelPath.trim()) {
-      setMessage('Please fill in all fields')
-      return
-    }
-
-    setIsLoading(true)
-    setMessage('')
-
+  const fetchDefaultUrls = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/models/add`, {
+      const response = await fetch(`${API_BASE_URL}/api/downloads/default-urls`)
+      const data: DefaultDownloadUrls = await response.json()
+      setDefaultUrls(data.urls)
+    } catch (error) {
+      console.error('Failed to fetch default URLs:', error)
+    }
+  }
+
+  const fetchParameters = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/parameters`)
+      const data: LLMParameters = await response.json()
+      setParameters(data)
+    } catch (error) {
+      console.error('Failed to fetch parameters:', error)
+    }
+  }
+
+  const handleApplyParameters = async () => {
+    try {
+      setParamMessage('正在应用参数...')
+
+      const response = await fetch(`${API_BASE_URL}/api/parameters`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(parameters),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setParamMessage(result.message)
+        await fetchParameters()
+        setTimeout(() => setParamMessage(''), 5000)
+      } else {
+        setParamMessage(`失败: ${result.message}`)
+      }
+    } catch (error) {
+      console.error('Failed to apply parameters:', error)
+      setParamMessage('参数应用失败')
+    }
+  }
+
+  const getStatusColor = () => {
+    if (!serverStatus) return 'red'
+    if (serverStatus.is_running && serverStatus.status === 'running') return 'green'
+    if (serverStatus.status === 'starting') return 'yellow'
+    return 'red'
+  }
+
+  const getStatusText = () => {
+    if (!serverStatus) return '未启动'
+    if (serverStatus.is_running && serverStatus.status === 'running') return '运行中'
+    if (serverStatus.status === 'starting') return '启动中'
+    return '未启动'
+  }
+
+  const isModelDownloaded = (url: string) => {
+    const filename = url.split('/').pop() || ''
+    const modelName = filename.replace(/\.gguf$/i, '')
+    return models.some(m => m.name === modelName)
+  }
+
+  const handleSelectModel = async (modelName: string, downloadUrl?: string) => {
+    try {
+      setMessage(downloadUrl ? '正在下载并激活模型...' : '正在切换模型...')
+
+      const response = await fetch(`${API_BASE_URL}/api/models/select`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: newModelName,
-          path: newModelPath,
+          model_name: modelName,
+          download_url: downloadUrl
         }),
       })
 
-      if (response.ok) {
-        setMessage('Model added successfully!')
-        setNewModelName('')
-        setNewModelPath('')
-        setShowAddForm(false)
+      const result = await response.json()
+
+      if (result.success) {
+        setMessage(result.message)
         await fetchModels()
-        setTimeout(() => setMessage(''), 3000)
-      } else {
-        setMessage('Failed to add model')
-      }
-    } catch (error) {
-      console.error('Failed to add model:', error)
-      setMessage('Failed to add model')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleBrowseFile = async () => {
-    try {
-      const filePath = await window.electronAPI.openFileDialog()
-      if (filePath) {
-        setNewModelPath(filePath)
-      }
-    } catch (error) {
-      console.error('Failed to open file dialog:', error)
-      setMessage('Failed to open file dialog')
-    }
-  }
-
-  const handleSetCurrentModel = async (modelId: number) => {
-    setIsLoading(true)
-    setMessage('')
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/models/current?model_id=${modelId}`, {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        setMessage('Current model updated!')
-        await fetchModels()
-        setTimeout(() => setMessage(''), 3000)
-      } else {
-        setMessage('Failed to update current model')
-      }
-    } catch (error) {
-      console.error('Failed to update current model:', error)
-      setMessage('Failed to update current model')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleStartServer = async () => {
-    if (!currentModel) {
-      setMessage('Please select a model first')
-      return
-    }
-
-    setIsLoading(true)
-    setMessage('')
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/server/start`, {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        setMessage('Server starting...')
         await fetchServerStatus()
         setTimeout(() => setMessage(''), 3000)
       } else {
-        const data = await response.json()
-        setMessage(`Failed to start server: ${data.detail || 'Unknown error'}`)
+        setMessage(`失败: ${result.message}`)
       }
     } catch (error) {
-      console.error('Failed to start server:', error)
-      setMessage('Failed to start server')
-    } finally {
-      setIsLoading(false)
+      console.error('Failed to select model:', error)
+      setMessage('模型选择失败')
     }
-  }
-
-  const handleStopServer = async () => {
-    setIsLoading(true)
-    setMessage('')
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/server/stop`, {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        setMessage('Server stopped')
-        await fetchServerStatus()
-        setTimeout(() => setMessage(''), 3000)
-      } else {
-        setMessage('Failed to stop server')
-      }
-    } catch (error) {
-      console.error('Failed to stop server:', error)
-      setMessage('Failed to stop server')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const getStatusColor = (status: string, isRunning: boolean) => {
-    if (isRunning && status === 'running') return 'green'
-    if (status === 'starting') return 'yellow'
-    return 'red'
-  }
-
-  const getStatusText = (status: string, isRunning: boolean) => {
-    if (isRunning && status === 'running') return '已启动'
-    if (status === 'starting') return '启动中'
-    return '未启动'
   }
 
   return (
     <div className="settings-page">
       <div className="settings-content">
-        {/* Server Status Section */}
+        {/* LLM Model Management Section - 合并服务器状态和模型管理 */}
         <div className="setting-section">
-          <h2>服务器状态</h2>
-          {serverStatus && (
-            <div className="server-status-info">
-              <div className="status-row">
-                <span className="status-label">状态:</span>
-                <span className="status-indicator">
-                  <span
-                    className="status-light"
-                    style={{ backgroundColor: getStatusColor(serverStatus.status, serverStatus.is_running) }}
-                  ></span>
-                  {getStatusText(serverStatus.status, serverStatus.is_running)}
-                </span>
-              </div>
-              {serverStatus.model_name && (
-                <div className="status-row">
-                  <span className="status-label">当前模型:</span>
-                  <span>{serverStatus.model_name}</span>
-                </div>
-              )}
-              {serverStatus.error_message && (
-                <div className="status-row error">
-                  <span className="status-label">错误:</span>
-                  <span>{serverStatus.error_message}</span>
-                </div>
-              )}
-              <div className="server-controls">
-                <button
-                  className="control-button start-button"
-                  onClick={handleStartServer}
-                  disabled={isLoading || serverStatus.is_running}
-                >
-                  启动服务器
-                </button>
-                <button
-                  className="control-button stop-button"
-                  onClick={handleStopServer}
-                  disabled={isLoading || !serverStatus.is_running}
-                >
-                  停止服务器
-                </button>
-              </div>
+
+          {/* Model Selector with inline status */}
+          <div className="model-selector-with-status">
+            <div className="model-label-row">
+              <span className="model-label">LLM模型</span>
+              <span
+                className="status-light-inline"
+                style={{ backgroundColor: getStatusColor() }}
+              ></span>
+              <span className="status-text-inline">{getStatusText()}</span>
             </div>
-          )}
-        </div>
 
-        {/* Model Management Section */}
-        <div className="setting-section">
-          <h2>模型管理</h2>
-
-          <div className="current-model-info">
-            <strong>当前模型:</strong>{' '}
-            {currentModel ? `${currentModel.name} (ID: ${currentModel.id})` : '未设置'}
+            <ModelDropdown
+            models={[
+              ...models.map(m => m.name),
+              ...defaultUrls
+                .filter(url => !isModelDownloaded(url))
+                .map(url => {
+                  const filename = url.split('/').pop() || ''
+                  return filename.replace(/\.gguf$/i, '')
+                })
+            ]}
+            selectedModel={currentModel?.name || ''}
+            onSelect={(modelName) => {
+              // Select model (already downloaded)
+              handleSelectModel(modelName)
+            }}
+            onDownload={(modelName) => {
+              // Find URL for this model and download + activate
+              const url = defaultUrls.find(u => {
+                const filename = u.split('/').pop() || ''
+                return filename.replace(/\.gguf$/i, '') === modelName
+              })
+              if (url) {
+                handleSelectModel(modelName, url)
+              }
+            }}
+            isDownloaded={(modelName) => {
+              return models.some(m => m.name === modelName)
+            }}
+            label=""
+            showDownloadProgress={false}
+            downloadProgress={0}
+          />
           </div>
 
-          <button
-            className="add-model-button"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            {showAddForm ? '取消添加' : '+ 添加模型'}
-          </button>
-
-          {showAddForm && (
-            <div className="add-model-form">
-              <div className="form-group">
-                <label>输入类型:</label>
-                <div className="radio-group">
-                  <label>
-                    <input
-                      type="radio"
-                      value="path"
-                      checked={inputType === 'path'}
-                      onChange={() => setInputType('path')}
-                    />
-                    本地路径
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      value="url"
-                      checked={inputType === 'url'}
-                      onChange={() => setInputType('url')}
-                    />
-                    下载链接
-                  </label>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="model-name">模型名称:</label>
-                <input
-                  id="model-name"
-                  type="text"
-                  value={newModelName}
-                  onChange={(e) => setNewModelName(e.target.value)}
-                  placeholder="例如: Qwen2.5-0.5B-Instruct"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="model-path">
-                  {inputType === 'path' ? '模型路径:' : '下载链接:'}
-                </label>
-                <div className="path-input-group">
-                  <input
-                    id="model-path"
-                    type="text"
-                    value={newModelPath}
-                    onChange={(e) => setNewModelPath(e.target.value)}
-                    placeholder={
-                      inputType === 'path'
-                        ? '例如: /home/user/models/model.gguf'
-                        : '例如: https://example.com/model.gguf'
-                    }
-                    className="form-input"
-                  />
-                  {inputType === 'path' && (
-                    <button
-                      type="button"
-                      className="browse-button"
-                      onClick={handleBrowseFile}
-                    >
-                      浏览...
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <button
-                className="save-button"
-                onClick={handleAddModel}
-                disabled={isLoading}
-              >
-                {isLoading ? '添加中...' : '添加模型'}
-              </button>
-            </div>
-          )}
-
-          <div className="models-list">
-            <h3>已添加的模型</h3>
-            {models.length === 0 ? (
-              <p className="no-models">暂无模型，请添加模型</p>
-            ) : (
-              <table className="models-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>名称</th>
-                    <th>路径</th>
-                    <th>状态</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {models.map((model) => (
-                    <tr key={model.id} className={currentModel?.id === model.id ? 'current-row' : ''}>
-                      <td>{model.id}</td>
-                      <td>{model.name}</td>
-                      <td className="path-cell" title={model.path}>
-                        {model.path}
-                      </td>
-                      <td>
-                        <span
-                          className="status-light"
-                          style={{ backgroundColor: getStatusColor(model.status, serverStatus?.is_running || false) }}
-                        ></span>
-                        {model.status}
-                      </td>
-                      <td>
-                        <button
-                          className="set-current-button"
-                          onClick={() => handleSetCurrentModel(model.id)}
-                          disabled={isLoading || currentModel?.id === model.id}
-                        >
-                          {currentModel?.id === model.id ? '当前' : '设为当前'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
+          {/* Message Display */}
           {message && (
-            <div className={`message ${message.includes('success') || message.includes('成功') ? 'success' : 'error'}`}>
+            <div className={`message ${message.includes('失败') || message.includes('错误') ? 'error' : 'success'}`}>
               {message}
             </div>
           )}
         </div>
 
-        {/* About Section */}
+        {/* LLM Parameters Configuration Section */}
         <div className="setting-section">
-          <h2>关于</h2>
-          <p>Zenow Chat - LLM 聊天应用</p>
-          <p>版本 0.1.0</p>
+          <h2>LLM 参数配置</h2>
+
+          <div className="param-group">
+            <h3>服务器参数（修改后需重启）</h3>
+
+            <div className="param-row">
+              <label>上下文窗口大小 (context_size):</label>
+              <input
+                type="number"
+                value={parameters.context_size}
+                onChange={(e) => setParameters({...parameters, context_size: parseInt(e.target.value)})}
+                min="512"
+                max="131072"
+              />
+            </div>
+
+            <div className="param-row">
+              <label>CPU 线程数 (threads):</label>
+              <input
+                type="number"
+                value={parameters.threads}
+                onChange={(e) => setParameters({...parameters, threads: parseInt(e.target.value)})}
+                min="1"
+                max="64"
+              />
+            </div>
+
+            <div className="param-row">
+              <label>GPU 层数 (gpu_layers):</label>
+              <input
+                type="number"
+                value={parameters.gpu_layers}
+                onChange={(e) => setParameters({...parameters, gpu_layers: parseInt(e.target.value)})}
+                min="0"
+                max="100"
+              />
+            </div>
+
+            <div className="param-row">
+              <label>批处理大小 (batch_size):</label>
+              <input
+                type="number"
+                value={parameters.batch_size}
+                onChange={(e) => setParameters({...parameters, batch_size: parseInt(e.target.value)})}
+                min="128"
+                max="2048"
+              />
+            </div>
+          </div>
+
+          <div className="param-group">
+            <h3>客户端参数（立即生效）</h3>
+
+            <div className="param-row">
+              <label>采样温度 (temperature):</label>
+              <input
+                type="number"
+                step="0.1"
+                value={parameters.temperature}
+                onChange={(e) => setParameters({...parameters, temperature: parseFloat(e.target.value)})}
+                min="0"
+                max="2"
+              />
+            </div>
+
+            <div className="param-row">
+              <label>重复惩罚 (repeat_penalty):</label>
+              <input
+                type="number"
+                step="0.1"
+                value={parameters.repeat_penalty}
+                onChange={(e) => setParameters({...parameters, repeat_penalty: parseFloat(e.target.value)})}
+                min="0"
+                max="2"
+              />
+            </div>
+
+            <div className="param-row">
+              <label>最大 Token 数 (max_tokens):</label>
+              <input
+                type="number"
+                value={parameters.max_tokens}
+                onChange={(e) => setParameters({...parameters, max_tokens: parseInt(e.target.value)})}
+                min="128"
+                max="8192"
+              />
+            </div>
+          </div>
+
+          <button className="apply-button" onClick={handleApplyParameters}>
+            应用参数
+          </button>
+
+          {/* Parameter Message Display */}
+          {paramMessage && (
+            <div className={`message ${paramMessage.includes('失败') || paramMessage.includes('错误') ? 'error' : 'success'}`}>
+              {paramMessage}
+            </div>
+          )}
         </div>
+
       </div>
     </div>
   )

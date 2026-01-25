@@ -13,16 +13,18 @@ logger = logging.getLogger(__name__)
 class BackendStartupHandler:
     """Handle model loading on backend startup"""
 
-    def __init__(self, llm_server, db_config, config):
+    def __init__(self, llm_server, llm_client, db_config, config):
         """
         Initialize startup handler
 
         Args:
             llm_server: LLMServer instance
+            llm_client: LLMClient instance
             db_config: SQLiteConfig instance
             config: Config module
         """
         self.llm_server = llm_server
+        self.llm_client = llm_client
         self.db_config = db_config
         self.config = config
 
@@ -31,21 +33,25 @@ class BackendStartupHandler:
         Initialize backend on startup:
         1. Check if config.db exists and has data
         2. If not, create it using config.py defaults
-        3. Get current model from config.db
-        4. Start llama-server with the model
+        3. Load LLM parameters from database (if exists)
+        4. Get current model from config.db
+        5. Start llama-server with the model
         """
         logger.info("=" * 80)
-        logger.info("BACKEND STARTUP - Initializing model")
+        logger.info("BACKEND STARTUP - Initializing")
         logger.info("=" * 80)
 
         try:
             # Step 1: Ensure database is initialized
             self._ensure_database_initialized()
 
-            # Step 2: Get current model from database
+            # Step 2: Load LLM parameters from database
+            self._load_parameters_from_db()
+
+            # Step 3: Get current model from database
             model_to_load = self._get_model_from_db()
 
-            # Step 3: If we have a model, start it
+            # Step 4: If we have a model, start it
             if model_to_load:
                 await self._start_model(model_to_load)
             else:
@@ -124,6 +130,62 @@ class BackendStartupHandler:
 
         except Exception as e:
             logger.error(f"✗ Failed to create database: {e}", exc_info=True)
+
+    def _load_parameters_from_db(self):
+        """
+        从数据库加载 LLM 参数配置
+        如果数据库中存在参数，优先使用数据库的值覆盖默认配置
+        """
+        logger.info("→ 加载 LLM 参数配置...")
+
+        try:
+            # 尝试从数据库获取参数
+            all_params = self.db_config.get_all_parameters()
+
+            if not all_params:
+                logger.info("ℹ 数据库中无参数配置，使用 config.py 默认值")
+                return
+
+            # LLMServer 参数
+            server_params_loaded = []
+            if 'context_size' in all_params:
+                self.llm_server.context_size = all_params['context_size']
+                server_params_loaded.append(f"context_size={all_params['context_size']}")
+            if 'threads' in all_params:
+                self.llm_server.threads = all_params['threads']
+                server_params_loaded.append(f"threads={all_params['threads']}")
+            if 'gpu_layers' in all_params:
+                self.llm_server.gpu_layers = all_params['gpu_layers']
+                server_params_loaded.append(f"gpu_layers={all_params['gpu_layers']}")
+            if 'batch_size' in all_params:
+                self.llm_server.batch_size = all_params['batch_size']
+                server_params_loaded.append(f"batch_size={all_params['batch_size']}")
+
+            # LLMClient 参数
+            client_params_loaded = []
+            if 'temperature' in all_params:
+                self.llm_client.temperature = all_params['temperature']
+                client_params_loaded.append(f"temperature={all_params['temperature']}")
+            if 'repeat_penalty' in all_params:
+                self.llm_client.repeat_penalty = all_params['repeat_penalty']
+                client_params_loaded.append(f"repeat_penalty={all_params['repeat_penalty']}")
+            if 'max_tokens' in all_params:
+                self.llm_client.max_tokens = all_params['max_tokens']
+                client_params_loaded.append(f"max_tokens={all_params['max_tokens']}")
+
+            # 日志输出
+            if server_params_loaded or client_params_loaded:
+                logger.info("✓ 从数据库加载参数配置:")
+                if server_params_loaded:
+                    logger.info(f"  LLMServer: {', '.join(server_params_loaded)}")
+                if client_params_loaded:
+                    logger.info(f"  LLMClient: {', '.join(client_params_loaded)}")
+            else:
+                logger.info("ℹ 数据库中无可用参数，使用默认值")
+
+        except Exception as e:
+            logger.warning(f"⚠ 加载参数配置失败: {e}")
+            logger.info("  将使用 config.py 默认值")
 
     def _get_model_from_db(self):
         """

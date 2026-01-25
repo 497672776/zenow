@@ -6,4 +6,9 @@
     - npm run all：开启前后端
     - 每个文件不能超过1000行
 - 新增
-    - 后端关闭，
+    - 后端关闭
+- 新增
+    - 前后端增加模型下载，可以显示下载进度
+    - 在config.py可以添加一个下载列表为默认配置
+        [ "https://modelscope.cn/models/second-state/Qwen2.5-0.5B-Instruct-GGUF/resolve/master/Qwen2.5-0.5B-Instruct-Q4_0.gguf", "https://modelscope.cn/models/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf"]
+    - 

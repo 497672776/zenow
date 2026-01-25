@@ -5,11 +5,8 @@
   "private": true,
   "scripts": {
     "front": "cd frontend && npm run dev",
-    "front:debug": "cd frontend && DEBUG=* npm run dev",
-    "back": "cd backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000",
-    "back:debug": "cd backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug",
-    "all": "concurrently \"npm run back\" \"npm run front\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
-    "all:debug": "concurrently \"npm run back:debug\" \"npm run front:debug\" --names \"backend,frontend\" --prefix-colors \"blue,green\""
+    "back": "cd backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8050 --log-level debug",
+    "all": "concurrently \"npm run back\" \"npm run front\" --names \"backend,frontend\" --prefix-colors \"blue,green\" 2>&1 | tee test.log"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
