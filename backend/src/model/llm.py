@@ -5,8 +5,9 @@ import subprocess
 import os
 import signal
 import time
-import requests
-from typing import Optional, Dict, Any, List, Iterator
+import requests  # For sync health checks
+import httpx  # For async LLM client
+from typing import Optional, Dict, Any, List, AsyncIterator
 from pathlib import Path
 import logging
 from ..config import (
@@ -246,7 +247,7 @@ class LLMClient:
         temperature: Optional[float] = None,
         repeat_penalty: Optional[float] = None,
         max_tokens: Optional[int] = None
-    ) -> Any:
+    ):
         """
         Send chat completion request
 
@@ -258,7 +259,7 @@ class LLMClient:
             max_tokens: Override default max tokens
 
         Returns:
-            Response from the server (dict if not streaming, iterator if streaming)
+            Async generator if stream=True, coroutine if stream=False
         """
         url = f"{self.base_url}/chat/completions"
 
@@ -271,15 +272,32 @@ class LLMClient:
         }
 
         if stream:
+            # Return async generator for streaming
             return self._stream_chat_completion(url, payload)
         else:
-            response = requests.post(url, json=payload, timeout=60)
+            # Return coroutine for non-streaming
+            return self._non_stream_chat_completion(url, payload)
+
+    async def _non_stream_chat_completion(self, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Non-streaming chat completion response (async)
+
+        Args:
+            url: API endpoint URL
+            payload: Request payload
+
+        Returns:
+            Complete response dict
+        """
+        # trust_env=False 忽略环境变量中的代理设置，直接连接本地 llama-server
+        async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
+            response = await client.post(url, json=payload)
             response.raise_for_status()
             return response.json()
 
-    def _stream_chat_completion(self, url: str, payload: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
+    async def _stream_chat_completion(self, url: str, payload: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
         """
-        Stream chat completion response
+        Stream chat completion response (async)
 
         Args:
             url: API endpoint URL
@@ -290,21 +308,22 @@ class LLMClient:
         """
         import json
 
-        with requests.post(url, json=payload, stream=True, timeout=300) as response:
-            response.raise_for_status()
+        # trust_env=False 忽略环境变量中的代理设置，直接连接本地 llama-server
+        async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
+            async with client.stream('POST', url, json=payload) as response:
+                response.raise_for_status()
 
-            for line in response.iter_lines():
-                if line:
-                    line_str = line.decode('utf-8')
-                    if line_str.startswith('data: '):
-                        data_str = line_str[6:]  # Remove 'data: ' prefix
-                        if data_str.strip() == '[DONE]':
-                            break
-                        try:
-                            data = json.loads(data_str)
-                            yield data
-                        except json.JSONDecodeError:
-                            continue
+                async for line in response.aiter_lines():
+                    if line:
+                        if line.startswith('data: '):
+                            data_str = line[6:]  # Remove 'data: ' prefix
+                            if data_str.strip() == '[DONE]':
+                                break
+                            try:
+                                data = json.loads(data_str)
+                                yield data
+                            except json.JSONDecodeError:
+                                continue
 
     def update_parameters(
         self,

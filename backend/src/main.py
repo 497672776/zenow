@@ -249,13 +249,14 @@ async def chat(request: ChatRequest):
         if request.stream:
             async def generate():
                 try:
-                    for chunk in llm_client.chat_completion(
+                    stream_gen = llm_client.chat_completion(
                         messages=messages,
                         stream=True,
                         temperature=request.temperature,
                         repeat_penalty=request.repeat_penalty,
                         max_tokens=request.max_tokens
-                    ):
+                    )
+                    async for chunk in stream_gen:
                         # Send SSE formatted data
                         yield f"data: {json.dumps(chunk)}\n\n"
 
@@ -276,7 +277,7 @@ async def chat(request: ChatRequest):
             )
         else:
             # Non-streaming response
-            response = llm_client.chat_completion(
+            response = await llm_client.chat_completion(
                 messages=messages,
                 stream=False,
                 temperature=request.temperature,
