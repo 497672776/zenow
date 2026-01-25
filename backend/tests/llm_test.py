@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.model.llm import LLMServer, LLMClient
 from src.comon.sqlite.sqlite_config import SQLiteConfig
-from src.config import DATABASE_PATH
+from src.config import DB_CONFIG_PATH
 
 # Model paths
 MODEL_DIR = Path("/home/liudecheng/Downloads/models")
@@ -33,7 +33,7 @@ def test_database_config():
     """Test database configuration"""
     print_section("Testing Database Configuration")
 
-    db = SQLiteConfig()
+    db = SQLiteConfig(DB_CONFIG_PATH)
 
     # Add models to database
     print(f"Adding model 1: {MODEL1_NAME}")

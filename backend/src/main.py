@@ -6,22 +6,62 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import json
 import os
+import asyncio
+import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
 from src.model.llm import LLMServer, LLMClient
+from src.model.download import ModelDownloader
 from src.comon.sqlite.sqlite_config import SQLiteConfig
-from src.config import (
-    DB_CONFIG_PATH,
-    LLM_CLIENT_BASE_URL,
-    LLM_CLIENT_TEMPERATURE,
-    LLM_CLIENT_REPEAT_PENALTY,
-    LLM_CLIENT_MAX_TOKENS
-)
+from src.pipeline.model_select import ModelSelectionPipeline
+from src.pipeline.backend_exit import BackendExitHandler
+from src.pipeline.backend_start import BackendStartupHandler
+from src import config
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
+
+def write_port_file(port: int):
+    """Write the port number to a file for frontend to read."""
+    port_file = Path.home() / ".config" / "zenow" / "backend.port"
+    port_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write port with PID to detect stale files
+    port_file.write_text(f"{port}\n{os.getpid()}\n")
+    logger.info(f"📝 Wrote port {port} and PID {os.getpid()} to {port_file}")
+
+
+def cleanup_port_file():
+    """Remove port file on shutdown."""
+    port_file = Path.home() / ".config" / "zenow" / "backend.port"
+    if port_file.exists():
+        port_file.unlink()
+        logger.info(f"🧹 Cleaned up port file: {port_file}")
+
+
 app = FastAPI(title="Zenow LLM Chat API")
+
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize on startup"""
+    write_port_file(config.API_SERVER_PORT)
+
+    # Initialize database and start model
+    await startup_handler.initialize()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up port file on shutdown."""
+    cleanup_port_file()
+
 
 # Configure CORS
 app.add_middleware(
@@ -33,14 +73,35 @@ app.add_middleware(
 )
 
 # Global instances
-db_config = SQLiteConfig(DB_CONFIG_PATH)
-llm_server = LLMServer()
-llm_client = LLMClient(
-    base_url=LLM_CLIENT_BASE_URL,
-    temperature=LLM_CLIENT_TEMPERATURE,
-    repeat_penalty=LLM_CLIENT_REPEAT_PENALTY,
-    max_tokens=LLM_CLIENT_MAX_TOKENS
+db_config = SQLiteConfig(config.DB_CONFIG_PATH)
+llm_server = LLMServer(
+    host=config.LLM_SERVER_HOST,
+    port=config.LLM_SERVER_PORT,
+    context_size=config.LLM_SERVER_CONTEXT_SIZE,
+    threads=config.LLM_SERVER_THREADS,
+    gpu_layers=config.LLM_SERVER_GPU_LAYERS,
+    batch_size=config.LLM_SERVER_BATCH_SIZE
 )
+llm_client = LLMClient(
+    base_url=config.LLM_CLIENT_BASE_URL,
+    temperature=config.LLM_CLIENT_TEMPERATURE,
+    repeat_penalty=config.LLM_CLIENT_REPEAT_PENALTY,
+    max_tokens=config.LLM_CLIENT_MAX_TOKENS
+)
+model_downloader = ModelDownloader(config.MODELS_DIR)
+model_selection_pipeline = ModelSelectionPipeline(
+    models_dir=config.MODELS_DIR,
+    downloader=model_downloader,
+    llm_server=llm_server,
+    db_config=db_config
+)
+
+# Register exit handler to clean up llama-server on backend exit
+exit_handler = BackendExitHandler(llm_server)
+exit_handler.register()
+
+# Register startup handler to initialize database and start model
+startup_handler = BackendStartupHandler(llm_server, db_config, config)
 
 # Models
 class Message(BaseModel):
@@ -78,6 +139,34 @@ class ServerStatusResponse(BaseModel):
     model_path: Optional[str] = None
     is_running: bool
     error_message: Optional[str] = None
+
+class DownloadModelRequest(BaseModel):
+    url: str
+    filename: Optional[str] = None
+
+class DownloadStatusResponse(BaseModel):
+    url: str
+    filename: str
+    status: str  # downloading, completed, failed
+    downloaded: int
+    total: int
+    progress: float
+    error: Optional[str] = None
+
+class DefaultDownloadUrlsResponse(BaseModel):
+    urls: List[str]
+    browser_path: str
+
+class SelectModelRequest(BaseModel):
+    model_name: str
+    download_url: Optional[str] = None
+
+class SelectModelResponse(BaseModel):
+    success: bool
+    message: str
+    model_name: str
+    model_path: Optional[str]
+    server_status: str
 
 
 @app.get("/")
@@ -233,6 +322,26 @@ async def switch_model(model_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/models/select", response_model=SelectModelResponse)
+async def select_model(request: SelectModelRequest):
+    """
+    Select a model through the complete pipeline:
+    1. Check if model exists in ~/.cache/zenow/model/
+    2. If not, download it (if URL provided)
+    3. Start/restart llama-server if needed
+    4. Update database with current model
+    """
+    try:
+        result = await model_selection_pipeline.select_model(
+            model_name=request.model_name,
+            download_url=request.download_url
+        )
+        return SelectModelResponse(**result)
+    except Exception as e:
+        logger.error(f"Model selection failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Send a chat message and get a response"""
@@ -245,47 +354,34 @@ async def chat(request: ChatRequest):
         # Convert messages to dict format
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
 
-        # Handle streaming response
-        if request.stream:
-            async def generate():
-                try:
-                    stream_gen = llm_client.chat_completion(
-                        messages=messages,
-                        stream=True,
-                        temperature=request.temperature,
-                        repeat_penalty=request.repeat_penalty,
-                        max_tokens=request.max_tokens
-                    )
-                    async for chunk in stream_gen:
-                        # Send SSE formatted data
-                        yield f"data: {json.dumps(chunk)}\n\n"
+        # Always use streaming
+        async def generate():
+            try:
+                stream_gen = llm_client.chat_stream(
+                    messages=messages,
+                    temperature=request.temperature,
+                    repeat_penalty=request.repeat_penalty,
+                    max_tokens=request.max_tokens
+                )
+                async for chunk in stream_gen:
+                    # Send SSE formatted data
+                    yield f"data: {json.dumps(chunk)}\n\n"
 
-                    # Send done signal
-                    yield "data: [DONE]\n\n"
-                except Exception as e:
-                    error_data = {"error": str(e)}
-                    yield f"data: {json.dumps(error_data)}\n\n"
+                # Send done signal
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                error_data = {"error": str(e)}
+                yield f"data: {json.dumps(error_data)}\n\n"
 
-            return StreamingResponse(
-                generate(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                    "X-Accel-Buffering": "no"
-                }
-            )
-        else:
-            # Non-streaming response
-            response = await llm_client.chat_completion(
-                messages=messages,
-                stream=False,
-                temperature=request.temperature,
-                repeat_penalty=request.repeat_penalty,
-                max_tokens=request.max_tokens
-            )
-
-            return response
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
 
     except HTTPException:
         raise
@@ -293,6 +389,46 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/downloads/default-urls", response_model=DefaultDownloadUrlsResponse)
+async def get_default_download_urls():
+    """Get default model download URLs and browser path"""
+    return DefaultDownloadUrlsResponse(
+        urls=config.DEFAULT_MODEL_DOWNLOAD_URLS,
+        browser_path=config.DEFAULT_MODEL_BROWSER_PATH
+    )
+
+
+@app.post("/api/downloads/start")
+async def start_download(request: DownloadModelRequest):
+    """Start downloading a model"""
+    try:
+        # Start download in background
+        asyncio.create_task(
+            model_downloader.download_model(
+                url=request.url,
+                filename=request.filename
+            )
+        )
+        return {"success": True, "url": request.url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/downloads/status/{url:path}")
+async def get_download_status(url: str):
+    """Get download status for a specific URL"""
+    status = model_downloader.get_download_status(url)
+    if status is None:
+        raise HTTPException(status_code=404, detail="Download not found")
+    return status
+
+
+@app.get("/api/downloads/all")
+async def get_all_downloads():
+    """Get status of all downloads"""
+    return model_downloader.get_all_downloads()
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=config.API_SERVER_HOST, port=config.API_SERVER_PORT)

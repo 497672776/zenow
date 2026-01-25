@@ -5,13 +5,12 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from .sqlite_base import SQLiteBase
-from ...config import DATABASE_PATH
 
 
 class SQLiteConfig(SQLiteBase):
     """SQLite database class for configuration persistence"""
 
-    def __init__(self, db_path: Path = DATABASE_PATH):
+    def __init__(self, db_path: Path):
         """Initialize configuration database"""
         super().__init__(db_path)
 

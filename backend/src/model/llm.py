@@ -10,16 +10,16 @@ import httpx  # For async LLM client
 from typing import Optional, Dict, Any, List, AsyncIterator
 from pathlib import Path
 import logging
-from ..config import (
-    LLM_SERVER_HOST, LLM_SERVER_PORT, LLM_SERVER_CONTEXT_SIZE,
-    LLM_SERVER_THREADS, LLM_SERVER_GPU_LAYERS, LLM_SERVER_BATCH_SIZE,
-    LLM_CLIENT_BASE_URL, LLM_CLIENT_TEMPERATURE, LLM_CLIENT_REPEAT_PENALTY,
-    LLM_CLIENT_MAX_TOKENS, MODEL_STATUS_NOT_STARTED, MODEL_STATUS_STARTING,
-    MODEL_STATUS_RUNNING, MODEL_STATUS_ERROR, MODEL_STATUS_STOPPED
-)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Model status constants
+MODEL_STATUS_NOT_STARTED = "not_started"
+MODEL_STATUS_STARTING = "starting"
+MODEL_STATUS_RUNNING = "running"
+MODEL_STATUS_ERROR = "error"
+MODEL_STATUS_STOPPED = "stopped"
 
 
 class LLMServer:
@@ -27,12 +27,12 @@ class LLMServer:
 
     def __init__(
         self,
-        host: str = LLM_SERVER_HOST,
-        port: int = LLM_SERVER_PORT,
-        context_size: int = LLM_SERVER_CONTEXT_SIZE,
-        threads: int = LLM_SERVER_THREADS,
-        gpu_layers: int = LLM_SERVER_GPU_LAYERS,
-        batch_size: int = LLM_SERVER_BATCH_SIZE,
+        host: str,
+        port: int,
+        context_size: int,
+        threads: int,
+        gpu_layers: int,
+        batch_size: int,
     ):
         """
         Initialize LLM Server
@@ -215,16 +215,26 @@ class LLMServer:
             "is_running": self.process is not None and self.process.poll() is None
         }
 
+    async def start(self, model_path: str, model_name: str) -> bool:
+        """Async wrapper for start_server"""
+        import asyncio
+        return await asyncio.to_thread(self.start_server, model_path, model_name)
+
+    async def stop(self) -> bool:
+        """Async wrapper for stop_server"""
+        import asyncio
+        return await asyncio.to_thread(self.stop_server)
+
 
 class LLMClient:
     """LLM Client for interacting with the LLM server"""
 
     def __init__(
         self,
-        base_url: str = LLM_CLIENT_BASE_URL,
-        temperature: float = LLM_CLIENT_TEMPERATURE,
-        repeat_penalty: float = LLM_CLIENT_REPEAT_PENALTY,
-        max_tokens: int = LLM_CLIENT_MAX_TOKENS
+        base_url: str,
+        temperature: float,
+        repeat_penalty: float,
+        max_tokens: int
     ):
         """
         Initialize LLM Client
@@ -239,61 +249,6 @@ class LLMClient:
         self.temperature = temperature
         self.repeat_penalty = repeat_penalty
         self.max_tokens = max_tokens
-
-    def chat_completion(
-        self,
-        messages: List[Dict[str, str]],
-        stream: bool = False,
-        temperature: Optional[float] = None,
-        repeat_penalty: Optional[float] = None,
-        max_tokens: Optional[int] = None
-    ):
-        """
-        Send chat completion request
-
-        Args:
-            messages: List of message dictionaries with 'role' and 'content'
-            stream: Whether to stream the response
-            temperature: Override default temperature
-            repeat_penalty: Override default repeat penalty
-            max_tokens: Override default max tokens
-
-        Returns:
-            Async generator if stream=True, coroutine if stream=False
-        """
-        url = f"{self.base_url}/chat/completions"
-
-        payload = {
-            "messages": messages,
-            "temperature": temperature or self.temperature,
-            "repeat_penalty": repeat_penalty or self.repeat_penalty,
-            "max_tokens": max_tokens or self.max_tokens,
-            "stream": stream
-        }
-
-        if stream:
-            # Return async generator for streaming
-            return self._stream_chat_completion(url, payload)
-        else:
-            # Return coroutine for non-streaming
-            return self._non_stream_chat_completion(url, payload)
-
-    async def _non_stream_chat_completion(self, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Non-streaming chat completion response (async)
-
-        Args:
-            url: API endpoint URL
-            payload: Request payload
-
-        Returns:
-            Complete response dict
-        """
-        # trust_env=False 忽略环境变量中的代理设置，直接连接本地 llama-server
-        async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            return response.json()
 
     async def _stream_chat_completion(self, url: str, payload: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
         """
@@ -345,3 +300,41 @@ class LLMClient:
             self.repeat_penalty = repeat_penalty
         if max_tokens is not None:
             self.max_tokens = max_tokens
+
+    async def chat_stream(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: Optional[float] = None,
+        repeat_penalty: Optional[float] = None,
+        max_tokens: Optional[int] = None
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """
+        Stream chat completion response
+
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            temperature: Sampling temperature (overrides default)
+            repeat_penalty: Repetition penalty (overrides default)
+            max_tokens: Max tokens to generate (overrides default)
+
+        Yields:
+            Chunks of the streaming response
+        """
+        # Use provided params or fall back to defaults
+        temp = temperature if temperature is not None else self.temperature
+        rep_penalty = repeat_penalty if repeat_penalty is not None else self.repeat_penalty
+        max_tok = max_tokens if max_tokens is not None else self.max_tokens
+
+        payload = {
+            "messages": messages,
+            "temperature": temp,
+            "repeat_penalty": rep_penalty,
+            "max_tokens": max_tok,
+            "stream": True
+        }
+
+        url = f"{self.base_url}/chat/completions"
+
+        # Stream the response
+        async for chunk in self._stream_chat_completion(url, payload):
+            yield chunk
