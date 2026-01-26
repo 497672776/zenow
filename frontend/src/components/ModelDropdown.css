@@ -39,6 +39,11 @@
   font-weight: 500;
 }
 
+.model-dropdown-selected.no-model {
+  color: #999;
+  font-style: italic;
+}
+
 .model-dropdown-arrow {
   color: #7f8c8d;
   font-size: 12px;
@@ -109,6 +114,47 @@
 .model-item-badge.downloaded {
   background-color: #d4edda;
   color: #155724;
+}
+
+.model-item-badge.not-downloaded {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+/* 内联进度条样式 */
+.model-item-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.progress-bar-inline {
+  flex: 1;
+  height: 16px;
+  background-color: #ecf0f1;
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.progress-fill-inline {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+  transition: width 0.3s ease;
+}
+
+.progress-text-inline {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2c3e50;
+  min-width: 45px;
+  text-align: right;
+}
+
+.model-item-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .model-item-download {

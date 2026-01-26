@@ -7,6 +7,7 @@ import logging
 import atexit
 import signal
 import sys
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +15,14 @@ logger = logging.getLogger(__name__)
 class BackendExitHandler:
     """Handle cleanup when backend exits"""
 
-    def __init__(self, llm_server):
+    def __init__(self, server_manager):
         """
         Initialize exit handler
 
         Args:
-            llm_server: LLMServer instance to clean up
+            server_manager: ModelServerManager instance to clean up
         """
-        self.llm_server = llm_server
+        self.server_manager = server_manager
         self._registered = False
 
     def register(self):
@@ -41,24 +42,11 @@ class BackendExitHandler:
 
     def _cleanup(self):
         """Cleanup function called on exit"""
-        logger.info("Backend exiting, cleaning up llama-server...")
+        logger.info("Backend exiting, cleaning up all llama-server processes...")
         try:
-            # Stop the LLM server if running
-            self.llm_server.stop_server()
-
-            # Additional cleanup: kill any remaining llama-server processes
-            # This catches any orphaned or zombie processes
-            # import subprocess
-            # try:
-            #     result = subprocess.run(
-            #         ["pkill", "-9", "llama-server"],
-            #         capture_output=True,
-            #         text=True
-            #     )
-            #     if result.returncode == 0:
-            #         logger.info("✓ Killed any remaining llama-server processes")
-            # except Exception as e:
-            #     logger.debug(f"pkill command failed (this is OK if no processes): {e}")
+            # Stop all model servers
+            asyncio.run(self.server_manager.stop_all())
+            logger.info("✓ All llama-server processes stopped")
 
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
@@ -69,3 +57,4 @@ class BackendExitHandler:
         logger.info(f"Received signal {signal_name}, cleaning up...")
         self._cleanup()
         sys.exit(0)
+

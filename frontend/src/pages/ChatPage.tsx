@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './ChatPage.css'
 import { getBackendBaseUrl } from '../utils/backendPort'
+import SessionList from '../components/SessionList'
 
 // 消息接口定义：每条消息包含角色（用户/助手）和内容
 interface Message {
@@ -16,6 +17,7 @@ function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])  // 存储所有聊天消息
   const [input, setInput] = useState('')  // 用户当前输入的文本
   const [isLoading, setIsLoading] = useState(false)  // 是否正在等待AI回复
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null)  // 当前会话ID
   const messagesEndRef = useRef<HTMLDivElement>(null)  // 用于滚动到消息底部的引用
 
   // ===== 生命周期：组件加载时执行 =====
@@ -33,6 +35,38 @@ function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // ===== 新建会话 =====
+  const handleNewChat = () => {
+    setMessages([])
+    setCurrentSessionId(null)
+    setInput('')
+    console.log('开始新会话')
+  }
+
+  // ===== 加载会话历史 =====
+  const handleSessionSelect = async (sessionId: number) => {
+    try {
+      // 加载会话消息
+      const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/messages`)
+      if (!response.ok) {
+        throw new Error('加载会话消息失败')
+      }
+
+      const data = await response.json()
+      const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+
+      setMessages(loadedMessages)
+      setCurrentSessionId(sessionId)
+      console.log('加载会话:', sessionId, '消息数:', loadedMessages.length)
+    } catch (error) {
+      console.error('加载会话失败:', error)
+      alert('加载会话失败: ' + (error instanceof Error ? error.message : '未知错误'))
+    }
+  }
+
   // ===== 发送消息的核心函数 =====
   const handleSend = async () => {
     // 1. 验证输入：如果输入为空，直接返回
@@ -49,19 +83,49 @@ function ChatPage() {
     setMessages(currentMessages)
 
     // 4. 清空输入框，设置加载状态
+    const userInput = input  // 保存用户输入，用于创建会话
     setInput('')
     setIsLoading(true)
 
     try {
-      // 5. 发送POST请求到后端API
+      // 5. 如果是第一条消息，先创建会话
+      let sessionId = currentSessionId
+      if (sessionId === null) {
+        try {
+          const createSessionResponse = await fetch(`${API_BASE_URL}/api/sessions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              first_message: userInput,
+            }),
+          })
+
+          if (!createSessionResponse.ok) {
+            throw new Error('创建会话失败')
+          }
+
+          const sessionData = await createSessionResponse.json()
+          sessionId = sessionData.session_id
+          setCurrentSessionId(sessionId)
+          console.log('创建新会话:', sessionId, '会话名:', sessionData.session_name)
+        } catch (error) {
+          console.error('创建会话失败:', error)
+          throw new Error('创建会话失败: ' + (error instanceof Error ? error.message : '未知错误'))
+        }
+      }
+
+      // 6. 发送POST请求到后端API（带会话ID）
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: currentMessages,  // 发送完整的对话历史
+          messages: [userMessage],  // 只发送当前消息，历史由后端从数据库加载
           stream: true,  // 启用流式传输
+          session_id: sessionId,  // 传递会话ID
         }),
       })
 
@@ -259,9 +323,28 @@ function ChatPage() {
 
   // ===== 渲染UI =====
   return (
-    <div className="chat-page">
-      {/* 消息显示区域 */}
-      <div className="messages-container">
+    <div className="chat-page-container">
+      {/* 左侧会话列表 */}
+      <SessionList
+        currentSessionId={currentSessionId}
+        onSessionSelect={handleSessionSelect}
+        onNewChat={handleNewChat}
+      />
+
+      {/* 右侧聊天区域 */}
+      <div className="chat-page">
+        {/* 顶部工具栏 */}
+        <div className="chat-toolbar">
+          <button className="new-chat-button" onClick={handleNewChat}>
+            新建会话
+          </button>
+          {currentSessionId && (
+            <span className="session-info">会话 ID: {currentSessionId}</span>
+          )}
+        </div>
+
+        {/* 消息显示区域 */}
+        <div className="messages-container">
         {/* 如果没有消息，显示欢迎界面 */}
         {messages.length === 0 ? (
           <div className="empty-state">
@@ -304,6 +387,7 @@ function ChatPage() {
           发送
         </button>
       </div>
+    </div>
     </div>
   )
 }

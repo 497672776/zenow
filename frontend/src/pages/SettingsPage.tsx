@@ -1,33 +1,12 @@
 import { useState, useEffect } from 'react'
 import './SettingsPage.css'
 import { getBackendBaseUrl } from '../utils/backendPort'
-import ModelDropdown from '../components/ModelDropdown'
+import ModelSection from '../components/ModelSection'
 
 let API_BASE_URL = 'http://localhost:8050' // Default fallback
 
-interface ModelInfo {
-  id: number
-  name: string
-  path: string
-  status: string
-  is_downloaded: boolean
-}
-
-interface ModelListResponse {
-  models: ModelInfo[]
-  current_model: ModelInfo | null
-}
-
-interface ServerStatus {
-  status: string
-  model_name: string | null
-  model_path: string | null
-  is_running: boolean
-  error_message: string | null
-}
-
 interface DefaultDownloadUrls {
-  urls: string[]
+  urls: { [key: string]: string[] }
   browser_path: string
 }
 
@@ -44,13 +23,7 @@ interface LLMParameters {
 }
 
 function SettingsPage() {
-  const [models, setModels] = useState<ModelInfo[]>([])
-  const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
-  const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
-  const [message, setMessage] = useState('')
-
-  // Download state
-  const [defaultUrls, setDefaultUrls] = useState<string[]>([])
+  const [paramMessage, setParamMessage] = useState('')
 
   // LLM Parameters state
   const [parameters, setParameters] = useState<LLMParameters>({
@@ -62,7 +35,6 @@ function SettingsPage() {
     repeat_penalty: 1.1,
     max_tokens: 2048
   })
-  const [paramMessage, setParamMessage] = useState('')
 
   useEffect(() => {
     // Initialize backend URL
@@ -71,51 +43,12 @@ function SettingsPage() {
       console.log('Using backend URL:', API_BASE_URL)
     })
 
-    fetchModels()
-    fetchServerStatus()
-    fetchDefaultUrls()
     fetchParameters()
-
-    // Poll server status every 2 seconds
-    const interval = setInterval(fetchServerStatus, 2000)
-    return () => clearInterval(interval)
   }, [])
-
-  const fetchModels = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/models`)
-      const data: ModelListResponse = await response.json()
-      setModels(data.models)
-      setCurrentModel(data.current_model)
-    } catch (error) {
-      console.error('Failed to fetch models:', error)
-      setMessage('Failed to load models')
-    }
-  }
-
-  const fetchServerStatus = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/server/status`)
-      const data: ServerStatus = await response.json()
-      setServerStatus(data)
-    } catch (error) {
-      console.error('Failed to fetch server status:', error)
-    }
-  }
-
-  const fetchDefaultUrls = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/downloads/default-urls`)
-      const data: DefaultDownloadUrls = await response.json()
-      setDefaultUrls(data.urls)
-    } catch (error) {
-      console.error('Failed to fetch default URLs:', error)
-    }
-  }
 
   const fetchParameters = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/parameters`)
+      const response = await fetch(`${API_BASE_URL}/api/models/get_param?mode=llm`)
       const data: LLMParameters = await response.json()
       setParameters(data)
     } catch (error) {
@@ -127,7 +60,7 @@ function SettingsPage() {
     try {
       setParamMessage('正在应用参数...')
 
-      const response = await fetch(`${API_BASE_URL}/api/parameters`, {
+      const response = await fetch(`${API_BASE_URL}/api/models/update_param?mode=llm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,106 +83,26 @@ function SettingsPage() {
     }
   }
 
-  const getStatusColor = () => {
-    if (!serverStatus) return 'red'
-    if (serverStatus.is_running && serverStatus.status === 'running') return 'green'
-    if (serverStatus.status === 'starting') return 'yellow'
-    return 'red'
-  }
-
-  const getStatusText = () => {
-    if (!serverStatus) return '未启动'
-    if (serverStatus.is_running && serverStatus.status === 'running') return '运行中'
-    if (serverStatus.status === 'starting') return '启动中'
-    return '未启动'
-  }
-
-  const handleSelectModel = async (modelName: string, downloadUrl?: string) => {
-    try {
-      setMessage(downloadUrl ? '正在下载并激活模型...' : '正在切换模型...')
-
-      const response = await fetch(`${API_BASE_URL}/api/models/select`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model_name: modelName,
-          download_url: downloadUrl
-        }),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setMessage(result.message)
-        await fetchModels()
-        await fetchServerStatus()
-        setTimeout(() => setMessage(''), 3000)
-      } else {
-        setMessage(`失败: ${result.message}`)
-      }
-    } catch (error) {
-      console.error('Failed to select model:', error)
-      setMessage('模型选择失败')
-    }
-  }
-
   return (
     <div className="settings-page">
       <div className="settings-content">
-        {/* LLM Model Management Section - 合并服务器状态和模型管理 */}
-        <div className="setting-section">
-
-          {/* Model Selector with inline status */}
-          <div className="model-selector-with-status">
-            <div className="model-label-row">
-              <span className="model-label">LLM模型</span>
-              <span
-                className="status-light-inline"
-                style={{ backgroundColor: getStatusColor() }}
-              ></span>
-              <span className="status-text-inline">{getStatusText()}</span>
-            </div>
-
-            <ModelDropdown
-            models={Array.from(new Set([
-              ...models.map(m => m.name),
-              ...defaultUrls.map(url => {
-                const filename = url.split('/').pop() || ''
-                return filename.replace(/\.gguf$/i, '')
-              })
-            ]))}
-            selectedModel={currentModel?.name || ''}
-            onSelect={(modelName) => {
-              // Select model (already downloaded)
-              handleSelectModel(modelName)
-            }}
-            onDownload={(modelName) => {
-              // Find URL for this model and download + activate
-              const url = defaultUrls.find(u => {
-                const filename = u.split('/').pop() || ''
-                return filename.replace(/\.gguf$/i, '') === modelName
-              })
-              if (url) {
-                handleSelectModel(modelName, url)
-              }
-            }}
-            isDownloaded={(modelName) => {
-              return models.some(m => m.name === modelName && m.is_downloaded)
-            }}
-            label=""
-            showDownloadProgress={false}
-            downloadProgress={0}
+        {/* Three Model Sections Side-by-Side */}
+        <div className="model-sections-container">
+          <ModelSection
+            mode="llm"
+            title="LLM 模型"
+            apiBaseUrl={API_BASE_URL}
           />
-          </div>
-
-          {/* Message Display */}
-          {message && (
-            <div className={`message ${message.includes('失败') || message.includes('错误') ? 'error' : 'success'}`}>
-              {message}
-            </div>
-          )}
+          <ModelSection
+            mode="embed"
+            title="Embed 模型"
+            apiBaseUrl={API_BASE_URL}
+          />
+          <ModelSection
+            mode="rerank"
+            title="Rerank 模型"
+            apiBaseUrl={API_BASE_URL}
+          />
         </div>
 
         {/* LLM Parameters Configuration Section */}

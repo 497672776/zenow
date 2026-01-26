@@ -1,8 +1,51 @@
+.chat-page-container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-page-container > :first-child {
+  width: 280px;
+  flex-shrink: 0;
+}
+
 .chat-page {
   display: flex;
   flex-direction: column;
+  flex: 1;
   height: 100%;
   background-color: white;
+}
+
+.chat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.new-chat-button {
+  padding: 8px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.new-chat-button:hover {
+  background-color: #2980b9;
+}
+
+.session-info {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
 }
 
 .messages-container {
