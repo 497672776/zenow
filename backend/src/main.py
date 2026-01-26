@@ -860,14 +860,19 @@ async def chat(request: ChatRequest):
     """
     聊天接口（流式响应）
 
-    支持两种模式：
-    1. 无会话模式（session_id=None）：直接发送消息，不保存历史
-    2. 会话模式（session_id提供）：加载历史记录，保存消息到数据库
+    必须提供 session_id，所有聊天都会保存到数据库
 
     Args:
-        request: 包含 messages, mode (可选), temperature (可选), session_id (可选) 等
+        request: 包含 messages, mode (可选), temperature (可选), session_id (必需) 等
     """
     try:
+        # 验证 session_id 必须提供
+        if request.session_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="session_id is required. Please create a session first."
+            )
+
         mode = request.mode or "llm"
 
         # 获取对应模式的服务器和客户端
@@ -882,60 +887,53 @@ async def chat(request: ChatRequest):
                 detail=f"{mode.upper()} server is not running. Please select a model first."
             )
 
-        # 准备发送给 LLM 的消息列表
+        # 验证会话是否存在
+        session = db_session.get_session(request.session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # 获取系统提示词
+        system_prompt_param = db_config.get_parameter("system_prompt")
+        system_prompt = system_prompt_param if system_prompt_param else config.DEFAULT_SYSTEM_PROMPT
+
+        # 估算系统提示词的 token 数
+        system_prompt_tokens = estimate_message_tokens("system", system_prompt)
+
+        # 获取 context_size 参数
+        context_size_param = db_config.get_parameter("context_size")
+        context_size = context_size_param if context_size_param else config.LLM_SERVER_CONTEXT_SIZE
+
+        # 计算历史记录的最大 token 数（context_size 的一半）
+        max_history_tokens = context_size // 2
+
+        # 从数据库加载历史消息（在 token 限制内）
+        history_messages = db_session.get_messages_within_token_limit(
+            session_id=request.session_id,
+            max_tokens=max_history_tokens,
+            system_prompt_tokens=system_prompt_tokens
+        )
+
+        # 构建消息列表：[system] + [history] + [new_user_message]
         messages_to_send = []
+        messages_to_send.append({"role": "system", "content": system_prompt})
 
-        # 会话模式：加载历史记录
-        if request.session_id is not None:
-            # 验证会话是否存在
-            session = db_session.get_session(request.session_id)
-            if not session:
-                raise HTTPException(status_code=404, detail="Session not found")
+        # 添加历史消息
+        for msg in history_messages:
+            messages_to_send.append({"role": msg["role"], "content": msg["content"]})
 
-            # 获取系统提示词
-            system_prompt_param = db_config.get_parameter("system_prompt")
-            system_prompt = system_prompt_param if system_prompt_param else config.DEFAULT_SYSTEM_PROMPT
+        # 添加新的用户消息（只取最后一条，因为前端可能发送多条）
+        if request.messages:
+            new_user_message = request.messages[-1]
+            messages_to_send.append({"role": new_user_message.role, "content": new_user_message.content})
 
-            # 估算系统提示词的 token 数
-            system_prompt_tokens = estimate_message_tokens("system", system_prompt)
-
-            # 获取 context_size 参数
-            context_size_param = db_config.get_parameter("context_size")
-            context_size = context_size_param if context_size_param else config.LLM_SERVER_CONTEXT_SIZE
-
-            # 计算历史记录的最大 token 数（context_size 的一半）
-            max_history_tokens = context_size // 2
-
-            # 从数据库加载历史消息（在 token 限制内）
-            history_messages = db_session.get_messages_within_token_limit(
+            # 保存用户消息到数据库
+            user_token_count = estimate_message_tokens(new_user_message.role, new_user_message.content)
+            db_session.add_message(
                 session_id=request.session_id,
-                max_tokens=max_history_tokens,
-                system_prompt_tokens=system_prompt_tokens
+                role=new_user_message.role,
+                content=new_user_message.content,
+                token_count=user_token_count
             )
-
-            # 构建消息列表：[system] + [history] + [new_user_message]
-            messages_to_send.append({"role": "system", "content": system_prompt})
-
-            # 添加历史消息
-            for msg in history_messages:
-                messages_to_send.append({"role": msg["role"], "content": msg["content"]})
-
-            # 添加新的用户消息（只取最后一条，因为前端可能发送多条）
-            if request.messages:
-                new_user_message = request.messages[-1]
-                messages_to_send.append({"role": new_user_message.role, "content": new_user_message.content})
-
-                # 保存用户消息到数据库
-                user_token_count = estimate_message_tokens(new_user_message.role, new_user_message.content)
-                db_session.add_message(
-                    session_id=request.session_id,
-                    role=new_user_message.role,
-                    content=new_user_message.content,
-                    token_count=user_token_count
-                )
-        else:
-            # 无会话模式：直接使用请求中的消息
-            messages_to_send = [{"role": msg.role, "content": msg.content} for msg in request.messages]
 
         # 流式响应
         async def generate():
@@ -948,16 +946,19 @@ async def chat(request: ChatRequest):
                     max_tokens=request.max_tokens
                 )
                 async for chunk in stream_gen:
-                    # 收集助手响应内容
-                    if "content" in chunk:
-                        assistant_response += chunk["content"]
+                    # 收集助手响应内容（OpenAI 格式）
+                    if "choices" in chunk and len(chunk["choices"]) > 0:
+                        delta = chunk["choices"][0].get("delta", {})
+                        content = delta.get("content")
+                        if content:  # 确保 content 不是 None 或空字符串
+                            assistant_response += content
 
                     yield f"data: {json.dumps(chunk)}\n\n"
 
                 yield "data: [DONE]\n\n"
 
-                # 如果是会话模式，保存助手响应到数据库
-                if request.session_id is not None and assistant_response:
+                # 保存助手响应到数据库
+                if assistant_response:
                     assistant_token_count = estimate_message_tokens("assistant", assistant_response)
                     db_session.add_message(
                         session_id=request.session_id,
@@ -965,8 +966,10 @@ async def chat(request: ChatRequest):
                         content=assistant_response,
                         token_count=assistant_token_count
                     )
+                    logger.info(f"Saved assistant message to session {request.session_id}, tokens: {assistant_token_count}")
 
             except Exception as e:
+                logger.error(f"Error in chat stream: {e}", exc_info=True)
                 error_data = {"error": str(e)}
                 yield f"data: {json.dumps(error_data)}\n\n"
 

@@ -11,4 +11,5 @@
     - 前后端增加模型下载，可以显示下载进度
     - 在config.py可以添加一个下载列表为默认配置
         [ "https://modelscope.cn/models/second-state/Qwen2.5-0.5B-Instruct-GGUF/resolve/master/Qwen2.5-0.5B-Instruct-Q4_0.gguf", "https://modelscope.cn/models/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf"]
-    - 
+- 新增
+    - ChatPage有两种模式，一种是点击新对话进入Page，不是用来聊天的，是用来创建会话，并跳转到会话历史对应的ChatPage界面，另一种是点击历史对话，跳转到会话历史对应的界面

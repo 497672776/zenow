@@ -1,14 +1,3 @@
-.chat-page-container {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-}
-
-.chat-page-container > :first-child {
-  width: 280px;
-  flex-shrink: 0;
-}
-
 .chat-page {
   display: flex;
   flex-direction: column;

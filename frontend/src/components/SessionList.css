@@ -1,55 +1,35 @@
+/* Session List Container */
 .session-list {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f8f9fa;
-  border-right: 1px solid #e0e0e0;
+  background-color: transparent;
 }
 
+/* Header */
 .session-list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid #e0e0e0;
-  background-color: white;
 }
 
 .session-list-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #2c3e50;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.refresh-button {
-  padding: 6px 12px;
-  background-color: #ecf0f1;
-  color: #2c3e50;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.refresh-button:hover:not(:disabled) {
-  background-color: #d5dbdb;
-}
-
-.refresh-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
+/* Content Area */
 .session-list-content {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 8px 0;
 }
 
-.empty-sessions {
+/* Empty State */
+.session-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -60,82 +40,305 @@
   padding: 20px;
 }
 
-.empty-sessions p {
+.session-empty p {
   margin: 5px 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
+/* Session Section */
+.session-section {
+  margin-bottom: 16px;
+}
+
+.section-header {
+  padding: 8px 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Session Item Wrapper */
+.session-item-wrapper {
+  position: relative;
+  padding: 0 12px;
+  margin-bottom: 4px;
+}
+
+/* Session Item Button */
 .session-item {
-  padding: 12px 15px;
-  margin-bottom: 8px;
-  background-color: white;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background-color: transparent;
+  border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 2px solid transparent;
+  text-align: left;
+  position: relative;
 }
 
 .session-item:hover {
-  background-color: #f0f4f8;
-  transform: translateX(2px);
+  background-color: #e8e8e8;
 }
 
 .session-item.active {
-  background-color: #e3f2fd;
-  border-color: #3498db;
+  background-color: #d1e7ff;
 }
 
-.session-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+.session-item.active:hover {
+  background-color: #c0dffc;
 }
 
-.session-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #2c3e50;
+/* Session Title */
+.session-title {
   flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-right: 8px;
 }
 
-.delete-button {
-  width: 24px;
-  height: 24px;
-  background-color: transparent;
-  color: #95a5a6;
-  border: none;
-  border-radius: 4px;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s;
+.session-item.active .session-title {
+  color: #1e88e5;
+}
+
+/* Three-dot Menu Button */
+.session-menu-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.2s;
+  cursor: pointer;
 }
 
-.delete-button:hover {
-  background-color: #e74c3c;
+.session-item:hover .session-menu-btn,
+.session-item.active .session-menu-btn {
+  opacity: 1;
+}
+
+.session-menu-btn:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Ellipsis Icon */
+.ellipsis-icon {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.ellipsis-icon .dot {
+  width: 3px;
+  height: 3px;
+  background-color: #7f8c8d;
+  border-radius: 50%;
+}
+
+/* Dropdown Menu */
+.session-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 12px;
+  margin-top: 4px;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 120px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: transparent;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.dropdown-item.delete {
+  color: #e74c3c;
+}
+
+.dropdown-item.delete:hover {
+  background-color: #fee;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* Modal Container */
+.modal-container {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.08),
+              0px 3px 6px -4px rgba(0, 0, 0, 0.12),
+              0px 9px 28px 8px rgba(0, 0, 0, 0.05);
+  width: 360px;
+  max-width: 90vw;
+  overflow: hidden;
+  padding: 24px;
+}
+
+/* Modal Header */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.modal-close-btn {
+  padding: 4px;
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 18px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.modal-close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Modal Body */
+.modal-body {
+  margin-bottom: 24px;
+}
+
+.modal-text {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 1.6;
+}
+
+.modal-highlight {
+  font-weight: 600;
+}
+
+/* Modal Input */
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 24px;
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  font-size: 14px;
+  color: black;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modal-input:focus {
+  border-color: #3498db;
+}
+
+.modal-input::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* Modal Footer */
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Modal Buttons */
+.modal-btn {
+  height: 32px;
+  padding: 0 24px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.modal-btn-cancel {
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.modal-btn-cancel:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.modal-btn-delete {
+  background-color: #ff4d4f;
   color: white;
 }
 
-.session-item-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: #7f8c8d;
+.modal-btn-delete:hover {
+  opacity: 0.9;
 }
 
-.session-time {
-  font-weight: 500;
+.modal-btn-confirm {
+  background-color: #3498db;
+  color: white;
 }
 
-.session-stats {
-  font-weight: 400;
+.modal-btn-confirm:hover {
+  background-color: #2980b9;
+}
+
+/* Scrollbar Styling */
+.session-list-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.session-list-content::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.session-list-content::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.session-list-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
 }
