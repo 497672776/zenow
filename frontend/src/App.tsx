@@ -4,6 +4,7 @@ import ChatPage from './pages/ChatPage'
 import SettingsPage from './pages/SettingsPage'
 import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import HistoryPage from './pages/HistoryPage'
+import SplashPage from './pages/SplashPage'
 import TitleBar from './components/TitleBar'
 import Sidebar from './components/Sidebar'
 import './App.css'
@@ -11,6 +12,7 @@ import './App.css'
 function AppContent() {
   const location = useLocation()
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)  // 刷新触发器
 
   const getPageTitle = () => {
     switch (location.pathname) {
@@ -37,6 +39,15 @@ function AppContent() {
     setCurrentSessionId(null)
   }
 
+  // 判断是否为新对话模式（没有选中会话）
+  const isNewChatMode = currentSessionId === null
+
+  // 触发会话列表刷新
+  const triggerRefresh = () => {
+    setRefreshTrigger(prev => prev + 1)
+    console.log('App: 触发会话列表刷新')
+  }
+
   return (
     <div className="app-container">
       <TitleBar pageTitle={getPageTitle()} />
@@ -45,6 +56,8 @@ function AppContent() {
           currentSessionId={currentSessionId}
           onSessionSelect={handleSessionSelect}
           onNewChat={handleNewChat}
+          refreshTrigger={refreshTrigger}
+          isNewChatMode={isNewChatMode}
         />
         <main className="main-content">
           <Routes>
@@ -54,11 +67,20 @@ function AppContent() {
                 <ChatPage
                   currentSessionId={currentSessionId}
                   onSessionChange={setCurrentSessionId}
+                  onRefreshSessions={triggerRefresh}
                 />
               }
             />
             <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
-            <Route path="/history" element={<HistoryPage />} />
+            <Route
+              path="/history"
+              element={
+                <HistoryPage
+                  onSelectSession={handleSessionSelect}
+                  refreshTrigger={refreshTrigger}
+                />
+              }
+            />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
@@ -68,6 +90,17 @@ function AppContent() {
 }
 
 function App() {
+  const [isReady, setIsReady] = useState(false)
+
+  const handleSplashReady = () => {
+    setIsReady(true)
+  }
+
+  // 显示启动页面，直到后端连接成功
+  if (!isReady) {
+    return <SplashPage onReady={handleSplashReady} />
+  }
+
   return (
     <Router>
       <AppContent />

@@ -328,7 +328,8 @@ async def get_models_list(mode: Optional[str] = None):
                 "name": m["model_name"],
                 "path": m["model_path"],
                 "is_downloaded": bool(m.get("is_downloaded", False)),
-                "mode": m.get("mode", "llm")
+                "mode": m.get("mode", "llm"),
+                "download_url": m.get("download_url")
             }
             for m in models
         ]
@@ -340,7 +341,8 @@ async def get_models_list(mode: Optional[str] = None):
                 "name": current["model_name"],
                 "path": current["model_path"],
                 "is_downloaded": bool(current.get("is_downloaded", False)),
-                "mode": current.get("mode", "llm")
+                "mode": current.get("mode", "llm"),
+                "download_url": current.get("download_url")
             }
 
         return {
@@ -624,15 +626,6 @@ async def get_server_status(mode: str = "llm"):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/downloads/default-urls")
-async def get_default_download_urls():
-    """获取默认模型下载 URLs"""
-    return {
-        "urls": config.DEFAULT_MODEL_DOWNLOAD_URLS,
-        "browser_path": config.DEFAULT_MODEL_BROWSER_PATH
-    }
 
 
 # ==================== Session Management APIs ====================

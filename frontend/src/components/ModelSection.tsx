@@ -8,6 +8,7 @@ export interface ModelInfo {
   path: string
   is_downloaded: boolean
   mode: string
+  download_url?: string
 }
 
 export interface ServerStatus {
@@ -45,7 +46,6 @@ function ModelSection({ mode, title, apiBaseUrl, onMessage }: ModelSectionProps)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
-  const [defaultUrls, setDefaultUrls] = useState<string[]>([])
   const [message, setMessage] = useState('')
   // 改为 Map 结构，支持多个下载任务
   const [downloadTasks, setDownloadTasks] = useState<Map<string, DownloadTask>>(new Map())
@@ -53,7 +53,7 @@ function ModelSection({ mode, title, apiBaseUrl, onMessage }: ModelSectionProps)
   useEffect(() => {
     fetchModels()
     fetchServerStatus()
-    fetchDefaultUrls()
+    restoreDownloadTasks()
 
     // Poll server status every 2 seconds
     const interval = setInterval(fetchServerStatus, 2000)
@@ -146,14 +146,39 @@ function ModelSection({ mode, title, apiBaseUrl, onMessage }: ModelSectionProps)
     }
   }
 
-  const fetchDefaultUrls = async () => {
+  const restoreDownloadTasks = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/downloads/default-urls`)
+      // 获取所有正在进行的下载
+      const response = await fetch(`${apiBaseUrl}/api/models/download/status`)
       const data = await response.json()
-      // data.urls is now a dict by mode
-      setDefaultUrls(data.urls[mode] || [])
+
+      if (data.success && data.downloads) {
+        const newTasks = new Map<string, DownloadTask>()
+
+        // 遍历所有下载，找出正在进行的
+        for (const [url, progress] of Object.entries(data.downloads)) {
+          const downloadProgress = progress as DownloadProgress
+
+          // 只恢复正在下载的任务（未完成且未失败）
+          if (downloadProgress.status === 'downloading') {
+            // 从 URL 提取模型名
+            const filename = downloadProgress.filename || url.split('/').pop() || ''
+            const modelName = filename.replace(/\.gguf$/i, '')
+
+            newTasks.set(url, {
+              modelName,
+              url,
+              progress: downloadProgress
+            })
+          }
+        }
+
+        if (newTasks.size > 0) {
+          setDownloadTasks(newTasks)
+        }
+      }
     } catch (error) {
-      console.error(`Failed to fetch default URLs for ${mode}:`, error)
+      console.error('Failed to restore download tasks:', error)
     }
   }
 
@@ -198,12 +223,16 @@ function ModelSection({ mode, title, apiBaseUrl, onMessage }: ModelSectionProps)
       const result = await response.json()
 
       if (result.success) {
+        // 模型切换成功，立即刷新模型列表和服务器状态
+        await Promise.all([
+          fetchModels(),
+          fetchServerStatus()
+        ])
+
         if (!downloadUrl) {
           // Only show success message if not downloading (download completion will show its own message)
           showMessage(result.message)
         }
-        await fetchModels()
-        await fetchServerStatus()
       } else {
         showMessage(`失败: ${result.message}`)
         // Remove from download tasks on failure
@@ -260,24 +289,18 @@ function ModelSection({ mode, title, apiBaseUrl, onMessage }: ModelSectionProps)
         </div>
 
         <ModelDropdown
-          models={Array.from(new Set([
-            ...models.map(m => m.name),
-            ...defaultUrls.map(url => {
-              const filename = url.split('/').pop() || ''
-              return filename.replace(/\.gguf$/i, '')
-            })
-          ]))}
+          models={models.map(m => m.name)}
           selectedModel={currentModel?.name || ''}
           onSelect={(modelName) => {
             handleSelectModel(modelName)
           }}
           onDownload={(modelName) => {
-            const url = defaultUrls.find(u => {
-              const filename = u.split('/').pop() || ''
-              return filename.replace(/\.gguf$/i, '') === modelName
-            })
-            if (url) {
-              handleSelectModel(modelName, url)
+            // 查找模型的 download_url
+            const model = models.find(m => m.name === modelName)
+            if (model?.download_url) {
+              handleSelectModel(modelName, model.download_url)
+            } else {
+              handleSelectModel(modelName)
             }
           }}
           isDownloaded={(modelName) => {

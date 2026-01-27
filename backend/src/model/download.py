@@ -1,5 +1,5 @@
 """
-Model download manager with progress tracking
+模型下载管理器，支持进度追踪
 """
 import httpx
 import asyncio
@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 class ModelDownloader:
-    """Model downloader with progress tracking"""
+    """模型下载器，支持进度追踪"""
 
     def __init__(self, download_dir: Path):
         """
-        Initialize model downloader
+        初始化模型下载器
 
         Args:
-            download_dir: Directory to save downloaded models
+            download_dir: 保存下载模型的目录
         """
         self.download_dir = Path(download_dir)
         self.download_dir.mkdir(parents=True, exist_ok=True)
@@ -27,13 +27,13 @@ class ModelDownloader:
 
     def _get_filename_from_url(self, url: str) -> str:
         """
-        Extract filename from URL
+        从URL中提取文件名
 
         Args:
-            url: Download URL
+            url: 下载URL
 
         Returns:
-            Filename extracted from URL
+            从URL中提取的文件名
         """
         parsed = urlparse(url)
         filename = Path(parsed.path).name
@@ -48,33 +48,39 @@ class ModelDownloader:
         progress_callback: Optional[Callable[[int, int, float], None]] = None
     ) -> Path:
         """
-        Download a model file with progress tracking
+        下载模型文件，支持进度追踪，使用临时文件
 
         Args:
-            url: URL to download from
-            filename: Optional custom filename (if not provided, extracted from URL)
-            progress_callback: Optional callback function(downloaded_bytes, total_bytes, progress_percent)
+            url: 下载URL
+            filename: 可选的自定义文件名（如果未提供，则从URL中提取）
+            progress_callback: 可选的回调函数(已下载字节数, 总字节数, 进度百分比)
 
         Returns:
-            Path to the downloaded file
+            下载文件的路径
 
         Raises:
-            Exception: If download fails
+            Exception: 如果下载失败
         """
         if filename is None:
             filename = self._get_filename_from_url(url)
 
         file_path = self.download_dir / filename
+        temp_path = file_path.with_suffix(file_path.suffix + '.tmp')
 
-        # Check if file already exists
+        # 检查文件是否已存在且完整
         if file_path.exists():
-            logger.info(f"File already exists: {file_path}")
+            logger.info(f"文件已存在: {file_path}")
             if progress_callback:
                 file_size = file_path.stat().st_size
                 progress_callback(file_size, file_size, 100.0)
             return file_path
 
-        # Register download
+        # 检查是否有未完成的下载
+        if temp_path.exists():
+            logger.warning(f"发现未完成的下载，正在删除: {temp_path}")
+            temp_path.unlink()
+
+        # 注册下载任务
         download_id = url
         self.active_downloads[download_id] = {
             "url": url,
@@ -86,11 +92,11 @@ class ModelDownloader:
         }
 
         try:
-            # Disable proxy for downloads (trust_env=False ignores system proxy)
+            # 禁用代理进行下载（trust_env=False 忽略系统代理）
             async with httpx.AsyncClient(
                 timeout=None,
                 follow_redirects=True,
-                trust_env=False  # Ignore system proxy settings
+                trust_env=False  # 忽略系统代理设置
             ) as client:
                 async with client.stream('GET', url) as response:
                     response.raise_for_status()
@@ -99,12 +105,13 @@ class ModelDownloader:
                     self.active_downloads[download_id]["total"] = total_size
 
                     downloaded = 0
-                    with open(file_path, 'wb') as f:
+                    # 下载到临时文件
+                    with open(temp_path, 'wb') as f:
                         async for chunk in response.aiter_bytes(chunk_size=8192):
                             f.write(chunk)
                             downloaded += len(chunk)
 
-                            # Update progress
+                            # 更新进度
                             self.active_downloads[download_id]["downloaded"] = downloaded
                             if total_size > 0:
                                 progress = (downloaded / total_size) * 100
@@ -113,32 +120,44 @@ class ModelDownloader:
                                 if progress_callback:
                                     progress_callback(downloaded, total_size, progress)
 
-            # Mark as completed
+            # 如果提供了总大小，验证文件大小
+            if total_size > 0:
+                actual_size = temp_path.stat().st_size
+                if actual_size != total_size:
+                    raise Exception(
+                        f"下载不完整: 期望 {total_size} 字节，实际 {actual_size} 字节"
+                    )
+
+            # 将临时文件重命名为最终文件（原子操作）
+            temp_path.rename(file_path)
+
+            # 标记为已完成
             self.active_downloads[download_id]["status"] = "completed"
-            logger.info(f"Downloaded model to: {file_path}")
+            logger.info(f"模型已下载到: {file_path}")
             return file_path
 
         except Exception as e:
-            # Mark as failed
+            # 标记为失败
             self.active_downloads[download_id]["status"] = "failed"
             self.active_downloads[download_id]["error"] = str(e)
 
-            # Clean up partial download
-            if file_path.exists():
-                file_path.unlink()
+            # 清理临时文件
+            if temp_path.exists():
+                temp_path.unlink()
+                logger.info(f"已清理临时文件: {temp_path}")
 
-            logger.error(f"Failed to download model: {e}")
+            logger.error(f"模型下载失败: {e}")
             raise
 
     def get_download_status(self, url: str) -> Optional[Dict[str, Any]]:
         """
-        Get download status for a URL
+        获取指定URL的下载状态
 
         Args:
-            url: Download URL
+            url: 下载URL
 
         Returns:
-            Download status dict or None if not found
+            下载状态字典，如果未找到则返回None
         """
         return self.active_downloads.get(url)
 

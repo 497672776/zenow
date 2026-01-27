@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import './Sidebar.css'
 import SessionList from './SessionList'
@@ -11,13 +10,19 @@ interface SidebarProps {
   currentSessionId: number | null
   onSessionSelect: (sessionId: number) => void
   onNewChat: () => void
+  refreshTrigger?: number  // 用于触发会话列表刷新
+  isNewChatMode: boolean   // 是否为新对话模式
 }
 
-function Sidebar({ currentSessionId, onSessionSelect, onNewChat }: SidebarProps) {
+function Sidebar({ currentSessionId, onSessionSelect, onNewChat, refreshTrigger, isNewChatMode }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
 
   const isActive = (path: string) => {
+    // 如果是根路径，只有在新对话模式下才高亮
+    if (path === '/') {
+      return location.pathname === path && isNewChatMode ? 'active' : ''
+    }
     return location.pathname === path ? 'active' : ''
   }
 
@@ -65,6 +70,7 @@ function Sidebar({ currentSessionId, onSessionSelect, onNewChat }: SidebarProps)
           currentSessionId={currentSessionId}
           onSessionSelect={handleSessionSelect}
           onNewChat={handleNewChat}
+          refreshTrigger={refreshTrigger}
         />
       </div>
 

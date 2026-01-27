@@ -18,11 +18,12 @@ interface SessionListProps {
   onNewChat: () => void
   onDeleteSession?: (sessionId: number) => void
   onRenameSession?: (sessionId: number, newName: string) => void
+  refreshTrigger?: number  // 用于触发刷新的计数器
 }
 
 let API_BASE_URL = 'http://localhost:8050'
 
-function SessionList({ currentSessionId, onSessionSelect, onNewChat, onDeleteSession, onRenameSession }: SessionListProps) {
+function SessionList({ currentSessionId, onSessionSelect, onNewChat, onDeleteSession, onRenameSession, refreshTrigger }: SessionListProps) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null)
@@ -42,6 +43,14 @@ function SessionList({ currentSessionId, onSessionSelect, onNewChat, onDeleteSes
       loadSessions()
     })
   }, [])
+
+  // 监听 refreshTrigger 变化，重新加载会话列表
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      console.log('SessionList: 收到刷新触发器，重新加载会话列表')
+      loadSessions()
+    }
+  }, [refreshTrigger])
 
   // 点击外部关闭菜单
   useEffect(() => {

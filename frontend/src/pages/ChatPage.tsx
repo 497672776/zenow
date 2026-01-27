@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import './ChatPage.css'
 import { getBackendBaseUrl } from '../utils/backendPort'
 
@@ -13,18 +12,19 @@ interface Message {
 interface ChatPageProps {
   currentSessionId: number | null
   onSessionChange: (sessionId: number | null) => void
+  onRefreshSessions: () => void  // 刷新会话列表的回调
 }
 
 // 后端API的基础URL
 let API_BASE_URL = 'http://localhost:8050' // Default fallback
 
-function ChatPage({ currentSessionId, onSessionChange }: ChatPageProps) {
+function ChatPage({ currentSessionId, onSessionChange, onRefreshSessions }: ChatPageProps) {
   // ===== 状态管理 =====
   const [messages, setMessages] = useState<Message[]>([])  // 存储所有聊天消息
   const [input, setInput] = useState('')  // 用户当前输入的文本
   const [isLoading, setIsLoading] = useState(false)  // 是否正在等待AI回复
+  const [lastLoadedSessionId, setLastLoadedSessionId] = useState<number | null>(null)  // 记录上次加载的会话ID
   const messagesEndRef = useRef<HTMLDivElement>(null)  // 用于滚动到消息底部的引用
-  const navigate = useNavigate()
 
   // 判断是否是新对话模式（没有 session_id）
   const isNewChatMode = currentSessionId === null
@@ -40,11 +40,14 @@ function ChatPage({ currentSessionId, onSessionChange }: ChatPageProps) {
 
   // ===== 监听会话ID变化，加载会话历史 =====
   useEffect(() => {
-    if (currentSessionId !== null) {
+    if (currentSessionId !== null && currentSessionId !== lastLoadedSessionId) {
+      // 会话ID变化且不是刚创建的会话，加载历史消息
       loadSessionMessages(currentSessionId)
-    } else {
+      setLastLoadedSessionId(currentSessionId)
+    } else if (currentSessionId === null) {
       // 新会话，清空消息
       setMessages([])
+      setLastLoadedSessionId(null)
     }
   }, [currentSessionId])
 
@@ -118,6 +121,12 @@ function ChatPage({ currentSessionId, onSessionChange }: ChatPageProps) {
         // 更新父组件的 session_id
         onSessionChange(newSessionId)
 
+        // 标记为已加载（避免 useEffect 重复加载）
+        setLastLoadedSessionId(newSessionId)
+
+        // 刷新会话列表（新会话已创建）
+        onRefreshSessions()
+
         // 显示用户消息
         setMessages([userMessage])
 
@@ -176,8 +185,11 @@ function ChatPage({ currentSessionId, onSessionChange }: ChatPageProps) {
       }
 
       // 9. 立即添加到列表显示占位符
-      setMessages((prev) => [...prev, assistantMessage])
-      let messageIndex = currentMessages.length  // 记录助手消息在数组中的索引位置
+      let messageIndex = 0  // 记录助手消息在数组中的索引位置
+      setMessages((prev) => {
+        messageIndex = prev.length  // 获取添加前的长度作为索引
+        return [...prev, assistantMessage]
+      })
       let firstTokenReceived = false  // 标记是否已收到第一个token
 
       // 9.1 节流渲染辅助函数：立即渲染第一次更新，之后最多每20ms渲染一次
@@ -287,6 +299,10 @@ function ChatPage({ currentSessionId, onSessionChange }: ChatPageProps) {
                 })
               }
               setIsLoading(false)
+
+              // 刷新会话列表（消息数和时间已更新）
+              onRefreshSessions()
+
               return
             }
 
