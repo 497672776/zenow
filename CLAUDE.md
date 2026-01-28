@@ -89,13 +89,22 @@ npm run electron:build   # Build Electron app
    - Tracks download progress and status
    - Stores models in mode-specific directories: `~/.cache/zenow/models/{llm,embed,rerank}/`
 
-6. **Pipelines** (`backend/src/pipeline/`)
+6. **API Routers** (`backend/src/routers/`)
+   - **Modular FastAPI Router Architecture**: API endpoints organized into separate router modules
+   - `system.py`: Health checks and root endpoints (`/api/health`, `/`)
+   - `models.py`: Model management endpoints (8 endpoints for current, list, load, download, status, parameters)
+   - `sessions.py`: Session management endpoints (8 endpoints for CRUD operations on chat sessions)
+   - `chat.py`: Chat completion endpoint (`/api/chat` for streaming responses)
+   - **Dependency Injection**: Each router receives dependencies (db_config, server_manager, etc.) via attribute injection from main.py
+   - **FastAPI Tags**: Automatic API documentation grouping by router module
+
+7. **Pipelines** (`backend/src/pipeline/`)
    - `ModelSelectionPipeline`: Handles model selection workflow (download → stop old server → start new server)
    - `BackendStartupHandler`: Initializes database and starts last-used model on startup
    - `BackendExitHandler`: Cleans up all llama-server processes on backend shutdown
    - `ModelParameterChangePipeline`: Updates model parameters and restarts server if needed
 
-7. **Database** (`backend/src/comon/sqlite/`)
+8. **Database** (`backend/src/comon/sqlite/`)
    - `SQLiteConfig`: Stores configuration per mode (current model, parameters)
      - Located at `~/.cache/zenow/data/db/config.db`
      - Tracks `is_downloaded` status for each model
@@ -107,17 +116,19 @@ npm run electron:build   # Build Electron app
      - Supports cascading deletes (deleting session removes all messages)
      - Auto-generates session names from first user message (max 50 chars)
 
-8. **Utilities** (`backend/src/utils/`)
+9. **Utilities** (`backend/src/utils/`)
    - `token_estimator.py`: Estimates token count for messages (4 chars ≈ 1 token)
    - Used for context window management and session token tracking
 
-9. **Configuration** (`backend/src/config.py`)
+10. **Configuration** (`backend/src/config.py`)
    - Default paths: `~/.cache/zenow/` (base), `~/.cache/zenow/models/{llm,embed,rerank}/` (models)
    - Default server ports: LLM=8051, Embed=8052, Rerank=8053
    - Default API server: `0.0.0.0:8050`
    - Default model download URLs per mode in `DEFAULT_MODEL_DOWNLOAD_URLS`
 
 **API Endpoints** (FastAPI on port 8050):
+
+*Architecture Note: All endpoints are organized using a modular router system (`backend/src/routers/`) with dependency injection for maintainability and clear separation of concerns.*
 
 *Core Model Management (6 endpoints):*
 - `GET /api/models/current?mode={llm|embed|rerank}` - Get current model for mode

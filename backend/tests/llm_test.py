@@ -10,9 +10,9 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.model.llm import LLMServer, LLMClient
-from src.comon.sqlite.sqlite_config import SQLiteConfig
-from src.config import DB_CONFIG_PATH
+from spacemit_llm.model.llm import LLMServer, LLMClient
+from spacemit_llm.comon.sqlite.sqlite_config import SQLiteConfig
+from config import DB_CONFIG_PATH
 
 # Model paths
 MODEL_DIR = Path("/home/liudecheng/Downloads/models")

@@ -54,5 +54,5 @@
     - 支持中断，支持消息记录到会话历史，选择会话，可以获得该消息列表，来让用户重新继续对话
     - 消息列表显示在sidebar历史聊天下面，支持会话名的修改，具体设计ui参考/home/liudecheng/airag_knowledge_base_test/airag_knowledge_base/src/renderer/components/HistoryPage.tsx，以及/home/liudecheng/airag_knowledge_base_test/airag_knowledge_base/src/renderer/components/Sidebar.tsx  {/* Chat group - 严格按照 DESIGN_SPEC.md 第5-6节 */}， 你觉得什么适合做成component你就做。
     - 现在新对话只是负责获得用户问题，然后创建会话，并跳转到对应会话历史，继续对话
-    - 
-    - 
+- 新增
+    - config.py应该只在应用的顶层（main.py 和routers）使用，而不应该在底层的 pipeline 和 model模块中使用。

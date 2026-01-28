@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { getBackendBaseUrl } from '../utils/backendPort'
+import { checkBackendHealth } from '../utils/backendPort'
 import launchPageBackground from '../assets/launch-page-background.png'
 import launchPageLogo from '../assets/launch-page-logo.svg'
 import './SplashPage.css'
@@ -15,48 +15,29 @@ function SplashPage({ onReady }: SplashPageProps) {
     let retryCount = 0
     const maxRetries = 10
 
-    const checkBackend = async () => {
-      try {
-        const baseUrl = await getBackendBaseUrl()
-
-        const response = await fetch(`${baseUrl}/api/server/status?mode=llm`, {
-          method: 'GET',
-          signal: AbortSignal.timeout(3000)
-        })
-
-        if (response.ok && isMounted) {
-          setTimeout(() => {
-            if (isMounted) {
-              onReady()
-            }
-          }, 500)
-          return true
-        }
-      } catch (error) {
-        console.warn('Backend connection attempt failed:', error)
-      }
-
-      return false
-    }
-
-    const retryConnection = async () => {
+    const connectToBackend = async () => {
       while (retryCount < maxRetries && isMounted) {
-        const connected = await checkBackend()
-        if (connected) {
-          return
+        try {
+          const isHealthy = await checkBackendHealth()
+
+          if (isHealthy && isMounted) {
+            onReady()
+            return
+          }
+        } catch (error) {
+          console.warn('Backend connection attempt failed:', error)
         }
 
         retryCount++
-        if (retryCount < maxRetries) {
+        if (retryCount < maxRetries && isMounted) {
           await new Promise(resolve => setTimeout(resolve, 1000))
         }
       }
-
     }
 
     // 延迟500ms后开始检测，让启动页面先显示
     const timer = setTimeout(() => {
-      retryConnection()
+      connectToBackend()
     }, 500)
 
     return () => {

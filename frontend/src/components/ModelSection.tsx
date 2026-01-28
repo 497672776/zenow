@@ -138,7 +138,7 @@ function ModelSection({ mode, title, apiBaseUrl, onMessage }: ModelSectionProps)
 
   const fetchServerStatus = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/server/status?mode=${mode}`)
+      const response = await fetch(`${apiBaseUrl}/api/models/server_status?mode=${mode}`)
       const data: ServerStatus = await response.json()
       setServerStatus(data)
     } catch (error) {

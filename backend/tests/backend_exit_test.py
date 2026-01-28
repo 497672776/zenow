@@ -11,8 +11,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.model.llm import LLMServer
-from src.pipeline.backend_exit import BackendExitHandler
+from spacemit_llm.model.llm import LLMServer
+from spacemit_llm.pipeline.backend_exit import BackendExitHandler
 from src import config
 
 
@@ -37,7 +37,7 @@ def test_exit_handler():
     
     # Get a test model from database
     print("\n[2] Getting test model...")
-    from src.comon.sqlite.sqlite_config import SQLiteConfig
+    from spacemit_llm.comon.sqlite.sqlite_config import SQLiteConfig
     db_config = SQLiteConfig(config.DB_CONFIG_PATH)
     models = db_config.get_all_models()
     

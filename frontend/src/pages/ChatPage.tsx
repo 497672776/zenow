@@ -159,7 +159,7 @@ function ChatPage({ currentSessionId, onSessionChange, onRefreshSessions }: Chat
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [userMessage],  // 只发送当前消息，历史由后端从数据库加载
+          message: userMessage,  // 发送单条消息，历史由后端从数据库加载
           stream: true,  // 启用流式传输
           session_id: sessionId,  // 传递会话ID
         }),
@@ -315,21 +315,30 @@ function ChatPage({ currentSessionId, onSessionChange, onRefreshSessions }: Chat
                 throw new Error(parsed.error)
               }
 
-              // 10.6 提取AI生成的内容片段
-              // OpenAI格式：choices[0].delta.content
-              if (parsed.choices && parsed.choices[0]?.delta?.content) {
-                const content = parsed.choices[0].delta.content
+              // 10.6 处理结构化数据格式
+              // 新格式：{data: "内容", done_flag: false}
+              if (parsed.data !== undefined) {
+                const content = parsed.data
+                const done_flag = parsed.done_flag
 
-                // 10.7 累加内容到助手消息
-                // 如果是第一个token，先清空"正在思考..."
-                if (!firstTokenReceived) {
-                  assistantMessage.content = content  // 替换掉"正在思考..."
-                } else {
-                  assistantMessage.content += content  // 后续token累加
+                // 如果有内容，处理它
+                if (content) {
+                  // 10.7 累加内容到助手消息
+                  // 如果是第一个token，先清空"正在思考..."
+                  if (!firstTokenReceived) {
+                    assistantMessage.content = content  // 替换掉"正在思考..."
+                  } else {
+                    assistantMessage.content += content  // 后续token累加
+                  }
+
+                  // 10.8 使用节流函数更新UI（最多每20ms更新一次）
+                  throttledUpdate()
                 }
 
-                // 10.8 使用节流函数更新UI（最多每20ms更新一次）
-                throttledUpdate()
+                // 如果收到结束标记，退出循环
+                if (done_flag) {
+                  break
+                }
               }
             } catch (e) {
               // 忽略空数据的解析错误

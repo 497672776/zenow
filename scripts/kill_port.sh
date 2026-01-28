@@ -1,0 +1,1 @@
+lsof -ti:8050 | xargs kill -9 2>/dev/null

@@ -12,10 +12,10 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.pipeline.model_select import ModelSelectionPipeline
-from src.model.download import ModelDownloader
-from src.model.llm import LLMServer
-from src.comon.sqlite.sqlite_config import SQLiteConfig
+from spacemit_llm.pipeline.model_select import ModelSelectionPipeline
+from spacemit_llm.model.download import ModelDownloader
+from spacemit_llm.model.llm import LLMServer
+from spacemit_llm.comon.sqlite.sqlite_config import SQLiteConfig
 from src import config
 
 
