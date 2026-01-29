@@ -38,6 +38,14 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; kbName: string | null; kbTitle: string }>(
     { show: false, kbName: null, kbTitle: '' }
   )
+  const [backendBaseUrl, setBackendBaseUrl] = useState<string>('')
+
+  // 获取完整的头像 URL
+  const getAvatarUrl = (avatarUrl: string | null | undefined) => {
+    if (!avatarUrl) return kbIcon5
+    if (avatarUrl.startsWith('http')) return avatarUrl
+    return `${backendBaseUrl}${avatarUrl}`
+  }
 
   useEffect(() => {
     loadKnowledgeBases()
@@ -49,6 +57,7 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
       console.log('📡 正在加载知识库列表...')
 
       const baseUrl = await getBackendBaseUrl()
+      setBackendBaseUrl(baseUrl)
       const response = await fetch(`${baseUrl}/api/knowledge-bases`)
 
       if (!response.ok) {
@@ -59,12 +68,7 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
 
       if (data.success && data.knowledge_bases) {
         console.log(`✅ 成功加载 ${data.knowledge_bases.length} 个知识库`)
-        // 将相对路径的 avatar_url 转换为完整 URL
-        const kbsWithFullUrl = data.knowledge_bases.map((kb: KnowledgeBase) => ({
-          ...kb,
-          avatar_url: kb.avatar_url ? `${baseUrl}${kb.avatar_url}` : null
-        }))
-        setKnowledgeBases(kbsWithFullUrl)
+        setKnowledgeBases(data.knowledge_bases)
       } else {
         console.warn('⚠️ 响应格式不正确:', data)
         setKnowledgeBases([])
@@ -208,7 +212,7 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
                             {/* 知识库头像 */}
                             <div className="dataset-avatar">
                               <img
-                                src={kb.avatar_url || kbIcon5}
+                                src={getAvatarUrl(kb.avatar_url)}
                                 alt={kb.name}
                               />
                             </div>
