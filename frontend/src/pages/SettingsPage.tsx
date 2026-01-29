@@ -5,11 +5,6 @@ import ModelSection from '../components/ModelSection'
 
 let API_BASE_URL = 'http://localhost:8050' // Default fallback
 
-interface DefaultDownloadUrls {
-  urls: { [key: string]: string[] }
-  browser_path: string
-}
-
 interface LLMParameters {
   // LLMServer 参数
   context_size: number

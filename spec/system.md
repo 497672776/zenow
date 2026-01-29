@@ -22,3 +22,9 @@
           onNewChat={handleNewChat}
         />
       </div>
+- 新增
+    - 做完ui，分析怎么做后端，文件上传相关用minio服务，先实现md、txt、pdf的上传即可
+    - 后台启动要先启动minio服务
+    - 知识库名、简介、描述用数据库保存，可以用,后台服务组件写在：/home/liudecheng/zenow-test/zenow/backend/spacemit_llm/comon/sqlite/sqlit_kb.py
+    - 知识库里面有什么文件，文件上传时间等也是在sqlit_kb.py里面写，所以你要做几个表，一个是知识库列表，一个是每个知识库详情。
+    - 
