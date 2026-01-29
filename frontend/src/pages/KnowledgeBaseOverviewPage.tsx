@@ -59,7 +59,12 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
 
       if (data.success && data.knowledge_bases) {
         console.log(`✅ 成功加载 ${data.knowledge_bases.length} 个知识库`)
-        setKnowledgeBases(data.knowledge_bases)
+        // 将相对路径的 avatar_url 转换为完整 URL
+        const kbsWithFullUrl = data.knowledge_bases.map((kb: KnowledgeBase) => ({
+          ...kb,
+          avatar_url: kb.avatar_url ? `${baseUrl}${kb.avatar_url}` : null
+        }))
+        setKnowledgeBases(kbsWithFullUrl)
       } else {
         console.warn('⚠️ 响应格式不正确:', data)
         setKnowledgeBases([])
