@@ -42,9 +42,17 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
 
   // 获取完整的头像 URL
   const getAvatarUrl = (avatarUrl: string | null | undefined) => {
-    if (!avatarUrl) return kbIcon5
-    if (avatarUrl.startsWith('http')) return avatarUrl
-    return `${backendBaseUrl}${avatarUrl}`
+    if (!avatarUrl) {
+      console.log('📷 头像 URL 为空，使用默认图标')
+      return kbIcon5
+    }
+    if (avatarUrl.startsWith('http')) {
+      console.log('📷 头像 URL (绝对路径):', avatarUrl)
+      return avatarUrl
+    }
+    const fullUrl = `${backendBaseUrl}${avatarUrl}`
+    console.log('📷 头像 URL (拼接后):', fullUrl)
+    return fullUrl
   }
 
   useEffect(() => {
@@ -214,6 +222,8 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
                               <img
                                 src={getAvatarUrl(kb.avatar_url)}
                                 alt={kb.name}
+                                onLoad={() => console.log('✅ 头像加载成功:', getAvatarUrl(kb.avatar_url))}
+                                onError={() => console.error('❌ 头像加载失败:', getAvatarUrl(kb.avatar_url))}
                               />
                             </div>
 

@@ -24,6 +24,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: false, // Disable web security to allow loading images from localhost
     },
   })
 
