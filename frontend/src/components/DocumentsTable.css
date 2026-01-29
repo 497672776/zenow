@@ -1,151 +1,350 @@
+/* Documents Table Container */
 .documents-table {
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 100%;
   overflow: hidden;
+  position: relative;
 }
 
-.documents-table-header {
-  padding: 24px;
-  border-bottom: 1px solid #f0f0f0;
-  flex-shrink: 0;
-}
-
-.documents-table-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0 0 8px 0;
-}
-
-.documents-table-subtitle {
-  font-size: 14px;
-  color: #999;
-  margin: 0;
-}
-
-.documents-table-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-.documents-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.document-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  background-color: white;
-}
-
-.document-item:hover {
-  background-color: #fafafa;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.document-item-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
-
-.document-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background-color: #e3f2fd;
+/* Loading State */
+.documents-table-loading {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  flex-shrink: 0;
+  height: 100%;
 }
 
-.document-info {
+.loading-text {
+  font-size: 16px;
+  color: #999;
+}
+
+/* Header */
+.documents-table-header {
+  flex-shrink: 0;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.documents-table-title {
+  font-weight: 450;
+  font-size: 20px;
+  line-height: 30px;
+  color: #0A0A0A;
+  margin: 0;
+  min-width: fit-content;
+}
+
+.documents-table-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* Search Box */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background-color: white;
+  height: 36px;
+}
+
+.search-icon {
+  flex-shrink: 0;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.search-input {
   flex: 1;
+  min-width: 0;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  color: black;
+  font-size: 14px;
+}
+
+.search-input::placeholder {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* Sort Select */
+.sort-select {
+  padding: 0 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background-color: white;
+  color: black;
+  font-size: 14px;
+  height: 36px;
+  outline: none;
+  cursor: pointer;
+}
+
+.sort-select:focus {
+  border-color: #b0e237;
+}
+
+/* Table Columns Header */
+.documents-table-columns {
+  display: grid;
+  grid-template-columns: 1fr 200px 100px 100px 60px;
+  gap: 16px;
+  padding: 16px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: white;
+}
+
+.column-name {
+  text-align: left;
+}
+
+.column-date {
+  text-align: left;
+}
+
+.column-chunks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.column-size {
+  text-align: left;
+}
+
+.column-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Table Body */
+.documents-table-body {
+  flex: 1;
+  overflow-y: auto;
+  background-color: white;
+}
+
+/* Document Row */
+.document-row {
+  display: grid;
+  grid-template-columns: 1fr 200px 100px 100px 60px;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  align-items: center;
+  transition: background-color 0.2s ease;
+}
+
+.document-row:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Document Name Column */
+.document-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
 }
 
-.document-name {
+.file-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+}
+
+.file-name {
   font-size: 14px;
-  font-weight: 500;
-  color: #1a1a1a;
-  margin: 0 0 4px 0;
+  color: #0A0A0A;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.document-details {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: #999;
-  margin: 0;
+/* Document Date Column */
+.document-date {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.5);
 }
 
+/* Document Chunks Column */
+.document-chunks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* Document Size Column */
+.document-size {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* Document Actions Column */
 .document-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  justify-content: center;
 }
 
-.document-delete-button {
+.delete-button {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
-  color: #ccc;
-  transition: all 0.2s ease;
   padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.document-delete-button:hover {
-  color: #ff4d4f;
+.delete-button:hover {
+  background-color: rgba(255, 77, 79, 0.1);
 }
 
+.delete-button img {
+  width: 16px;
+  height: 16px;
+}
+
+/* Empty State */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #999;
+  padding: 40px;
 }
 
-.empty-state-icon {
+.empty-icon {
   font-size: 48px;
   margin-bottom: 16px;
+  opacity: 0.5;
 }
 
-.empty-state-text {
+.empty-text {
   font-size: 16px;
+  color: #666;
   margin-bottom: 8px;
 }
 
-.empty-state-hint {
-  font-size: 12px;
-  color: #ccc;
+.empty-hint {
+  font-size: 14px;
+  color: #999;
 }
 
-.loading-state {
+/* Delete Confirmation Modal */
+.delete-confirm-modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: #999;
+  z-index: 50;
+}
+
+.delete-confirm-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08),
+              0 3px 6px -4px rgba(0, 0, 0, 0.12),
+              0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  width: 360px;
+  overflow: hidden;
+  position: relative;
+}
+
+.delete-confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 8px;
+}
+
+.delete-confirm-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 0;
+}
+
+.delete-confirm-close {
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.delete-confirm-close:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.delete-confirm-close span {
+  font-size: 18px;
+}
+
+.delete-confirm-content {
+  padding: 0 24px 16px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.delete-confirm-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 20px 24px;
+}
+
+.delete-confirm-button {
+  height: 32px;
+  padding: 0 24px;
+  border-radius: 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-confirm-button.cancel {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: white;
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: normal;
+}
+
+.delete-confirm-button.cancel:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.delete-confirm-button.delete {
+  border: none;
+  background-color: #ff4d4f;
+  color: white;
+  font-weight: 500;
+}
+
+.delete-confirm-button.delete:hover {
+  opacity: 0.9;
 }

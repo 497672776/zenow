@@ -3,7 +3,8 @@ System API Router
 处理系统相关的接口
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Form
+from typing import Optional
 import config
 
 router = APIRouter(tags=["system"])
@@ -29,4 +30,17 @@ async def health_check():
         简单的健康状态响应
     """
     return {"status": "healthy", "app": "zenow"}
+
+
+@router.post("/api/test-form")
+async def test_form(
+    name: str = Form(...),
+    description: Optional[str] = Form(None)
+):
+    """Test form data parsing"""
+    return {
+        "success": True,
+        "name": name,
+        "description": description
+    }
 

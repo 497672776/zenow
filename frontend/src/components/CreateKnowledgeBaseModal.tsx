@@ -1,68 +1,51 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import kbIcon5 from '../assets/kb-icon-5.png'
+import { getBackendBaseUrl } from '../utils/backendPort'
 import './CreateKnowledgeBaseModal.css'
 
 interface CreateKnowledgeBaseModalProps {
   isOpen: boolean
+  mode?: 'create' | 'edit'
+  kbName?: string
+  initialName?: string
+  initialDescription?: string
+  initialAvatarUrl?: string
   onClose: () => void
   onSuccess?: (kbName: string) => void
 }
 
 const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = ({
   isOpen,
+  mode = 'create',
+  kbName,
+  initialName = '',
+  initialDescription = '',
+  initialAvatarUrl = '',
   onClose,
   onSuccess,
 }) => {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [invalidCharToast, setInvalidCharToast] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  if (!isOpen) return null
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!name.trim()) {
-      setError('知识库名称不能为空')
-      return
+  // 当 modal 打开或初始值变化时，重置表单
+  useEffect(() => {
+    if (isOpen) {
+      setName(initialName)
+      setDescription(initialDescription)
+      setAvatarUrl(initialAvatarUrl)
+      setAvatarFile(null)
+      setError('')
+      setInvalidCharToast('')
     }
-
-    // 检查名称是否包含特殊字符
-    const invalidChars = /[<>:"/\\|?*]/
-    if (invalidChars.test(name)) {
-      setError('知识库名称不能包含特殊字符 < > : " / \\ | ? *')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-
-    try {
-      // TODO: 替换为实际的API调用
-      console.log('创建知识库:', {
-        name: name.trim(),
-        description: description.trim(),
-        avatarUrl
-      })
-
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      onSuccess?.(name.trim())
-
-      // 重置表单
-      setName('')
-      setDescription('')
-      setAvatarUrl('')
-    } catch (error) {
-      console.error('Failed to create knowledge base:', error)
-      setError('创建失败，请重试')
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [isOpen, initialName, initialDescription, initialAvatarUrl])
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click()
@@ -83,7 +66,10 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = ({
         return
       }
 
-      // 读取图片并转换为 base64
+      // 保存File对象用于上传
+      setAvatarFile(file)
+
+      // 读取图片并转换为 base64 用于预览
       const reader = new FileReader()
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string
@@ -94,133 +80,242 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = ({
     }
   }
 
+  const handleCreate = async () => {
+    const newName = name.trim()
+
+    if (!newName) {
+      setError('知识库名称不能为空')
+      return
+    }
+
+    if (newName.length > 25) {
+      setError('知识库名称不能超过 25 个字符')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      // 获取后端URL
+      const baseUrl = await getBackendBaseUrl()
+
+      if (mode === 'edit') {
+        // 编辑模式 - 调用更新API
+        // TODO: 替换为实际的API调用
+        console.log('更新知识库:', {
+          kbName,
+          newName,
+          description: description.trim(),
+          avatarUrl
+        })
+
+        // 模拟API调用
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        console.log('✅ 更新知识库成功')
+        onSuccess?.(newName)
+      } else {
+        // 创建模式 - 调用创建API
+        // 构建FormData
+        const formData = new FormData()
+        formData.append('name', newName)
+        formData.append('description', description.trim())
+
+        // 添加图片文件（如果有）
+        if (avatarFile) {
+          formData.append('avatar', avatarFile)
+        }
+
+        // 发送请求
+        const response = await fetch(`${baseUrl}/api/knowledge-bases`, {
+          method: 'POST',
+          body: formData
+          // 注意：不要设置 Content-Type，浏览器会自动设置为 multipart/form-data
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || '创建知识库失败')
+        }
+
+        const result = await response.json()
+        console.log('✅ 创建知识库成功:', result)
+
+        // 重置表单
+        resetForm()
+        onSuccess?.(newName)
+      }
+
+      onClose()
+    } catch (err) {
+      console.error(mode === 'edit' ? '更新知识库失败:' : '创建知识库失败:', err)
+      setError(err instanceof Error ? err.message : `${mode === 'edit' ? '更新' : '创建'}知识库失败，请重试`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resetForm = () => {
+    setName('')
+    setDescription('')
+    setAvatarUrl('')
+    setAvatarFile(null)
+    setError('')
+    setInvalidCharToast('')
+  }
+
   const handleClose = () => {
     if (!loading) {
-      setName('')
-      setDescription('')
-      setAvatarUrl('')
-      setError('')
+      resetForm()
       onClose()
     }
   }
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-[400px] overflow-hidden">
-        {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">新建知识库</h3>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            disabled={loading}
-          >
-            ✕
-          </button>
-        </div>
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 只允许字母、数字、中文、下划线、连字符
+    const validNamePattern = /^[\w\-\u4e00-\u9fff]*$/
+    const newValue = e.target.value
 
-        {/* 内容 */}
-        <form onSubmit={handleSubmit} className="p-6">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
+    if (validNamePattern.test(newValue) || newValue === '') {
+      setName(newValue)
+      if (error) setError('')
+      setInvalidCharToast('')
+    } else {
+      // 检测到非法字符，显示提示
+      setInvalidCharToast('❌ 知识库名称只能包含字母、数字、中文、下划线和连字符')
+      // 清除之前的定时器
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
+      // 3 秒后自动隐藏提示
+      toastTimeoutRef.current = setTimeout(() => {
+        setInvalidCharToast('')
+      }, 3000)
+    }
+  }
 
-          {/* 头像 */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              头像
-            </label>
-            <div className="flex items-center space-x-4">
-              <div
-                className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors"
-                onClick={handleAvatarClick}
-              >
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="头像" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-gray-400 text-2xl">📁</span>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                className="hidden"
-                disabled={loading}
-              />
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading && name.trim()) {
+      handleCreate()
+    }
+  }
+
+  return createPortal(
+    isOpen ? (
+      <div className="modal-backdrop" onClick={handleClose}>
+        {/* Modal Container */}
+        <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-dialog">
+            {/* Header */}
+            <div className="modal-header">
+              <h2 className="modal-title">{mode === 'edit' ? '编辑知识库' : '新建知识库'}</h2>
               <button
-                type="button"
-                onClick={handleAvatarClick}
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                onClick={handleClose}
                 disabled={loading}
+                className="modal-close-button"
               >
-                选择图片
+                <svg className="modal-close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="modal-content">
+              {/* Avatar */}
+              <div className="avatar-section">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="avatar-input"
+                  disabled={loading}
+                />
+                <div onClick={handleAvatarClick} className="avatar-upload">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" />
+                  ) : (
+                    <img src={kbIcon5} alt="Default Avatar" />
+                  )}
+                </div>
+              </div>
+
+              {/* Name Input */}
+              <div className="modal-form-section">
+                <label className="form-label form-label-required">
+                  知识库名称
+                </label>
+                <input
+                  type="text"
+                  placeholder="希望这么称呼您的知识库？"
+                  value={name}
+                  onChange={handleNameChange}
+                  onKeyDown={handleKeyDown}
+                  disabled={loading}
+                  maxLength={25}
+                  className="form-input"
+                />
+                {invalidCharToast && (
+                  <div className="invalid-char-toast">
+                    {invalidCharToast}
+                  </div>
+                )}
+                <div className={`form-char-count ${name.length > 25 ? 'warning' : 'normal'}`}>
+                  {name.length}/25 字符
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="modal-form-section">
+                <label className="form-label">
+                  简介
+                </label>
+                <textarea
+                  placeholder="请以简介介绍一遍，或者告诉大家是干什么用的吧。"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={loading}
+                  rows={3}
+                  maxLength={100}
+                  className="form-textarea"
+                />
+                <div className={`form-char-count ${description.length > 100 ? 'warning' : 'normal'}`}>
+                  {description.length}/100 字符
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="error-message">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="modal-footer">
+              <button
+                onClick={handleClose}
+                disabled={loading}
+                className="modal-button modal-button-cancel"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={loading || !name.trim()}
+                className="modal-button modal-button-primary"
+              >
+                {loading ? (mode === 'edit' ? '更新中...' : '创建中...') : (mode === 'edit' ? '保存' : '创建')}
               </button>
             </div>
           </div>
-
-          {/* 名称 */}
-          <div className="mb-4">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-              知识库名称 *
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="请输入知识库名称"
-              disabled={loading}
-              required
-              maxLength={50}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              不能包含特殊字符 &lt; &gt; : " / \ | ? *
-            </p>
-          </div>
-
-          {/* 描述 */}
-          <div className="mb-6">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              描述
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="请输入知识库描述（可选）"
-              disabled={loading}
-              maxLength={200}
-            />
-          </div>
-
-          {/* 按钮 */}
-          <div className="flex items-center justify-end space-x-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-              disabled={loading}
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading || !name.trim()}
-            >
-              {loading ? '创建中...' : '创建'}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
-    </div>
+    ) : null,
+    document.body
   )
 }
 

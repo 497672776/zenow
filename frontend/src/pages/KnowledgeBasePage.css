@@ -1,5 +1,6 @@
 .knowledge-base-page {
   display: flex;
+  flex: 1;
   flex-direction: column;
   height: 100%;
   background-color: white;

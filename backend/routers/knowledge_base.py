@@ -59,10 +59,10 @@ async def list_knowledge_bases():
 @kb_router.post("")
 async def create_knowledge_base(
     name: str = Form(...),
-    description: str = Form(default=""),
-    avatar_url: Optional[str] = Form(default=None)
+    description: str = Form(""),
+    avatar: Optional[UploadFile] = File(None)
 ):
-    """Create a new knowledge base."""
+    """Create a new knowledge base with optional avatar image."""
     try:
         if not name or not name.strip():
             raise HTTPException(
@@ -70,10 +70,38 @@ async def create_knowledge_base(
                 detail="Knowledge base name is required"
             )
 
+        avatar_path = None
+
+        # Handle avatar upload if provided
+        if avatar and avatar.filename:
+            # Validate file type
+            allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"}
+            if avatar.content_type not in allowed_types:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid image type. Allowed: PNG, JPEG, GIF, WEBP"
+                )
+
+            # Validate file size (max 5MB)
+            file_content = await avatar.read()
+            if len(file_content) > 5 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Image size must not exceed 5MB"
+                )
+
+            # Upload to MinIO
+            if minio_client:
+                file_ext = avatar.filename.split('.')[-1].lower()
+                object_name = f"avatars/{name.strip()}.{file_ext}"
+                await minio_client.upload_file(object_name, file_content)
+                avatar_path = object_name
+                logger.info(f"✅ Uploaded avatar: {object_name}")
+
         kb_id = await db_kb.create_knowledge_base(
             name=name.strip(),
             description=description.strip(),
-            avatar_url=avatar_url
+            avatar_url=avatar_path
         )
 
         kb = await db_kb.get_knowledge_base(kb_id)
@@ -84,6 +112,8 @@ async def create_knowledge_base(
             "knowledge_base": kb
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to create knowledge base: {e}")
         if "already exists" in str(e):
@@ -126,9 +156,9 @@ async def get_knowledge_base(kb_id: int):
 @kb_router.put("/{kb_id}")
 async def update_knowledge_base(
     kb_id: int,
-    name: Optional[str] = Form(default=None),
-    description: Optional[str] = Form(default=None),
-    avatar_url: Optional[str] = Form(default=None)
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    avatar_url: Optional[str] = Form(None)
 ):
     """Update knowledge base information."""
     try:

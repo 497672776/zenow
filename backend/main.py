@@ -48,7 +48,7 @@ db_kb = SQLiteKnowledgeBase()
 
 # MinIO 服务
 minio_server = MinioServer()
-minio_client = MinioClient()
+minio_client = None  # Will be initialized in startup event
 
 # 模型服务器管理
 server_manager = ModelServerManager()
@@ -100,8 +100,7 @@ sessions_router.db_session = db_session
 # 设置 chat router 的全局变量
 chat_router.chat_pipeline = chat_pipeline
 
-# 设置 knowledge base router 的依赖
-set_kb_dependencies(db_kb, minio_client)
+# 知识库路由的依赖将在 startup 事件中设置（MinIO 客户端初始化后）
 
 # ============================================================================
 # FastAPI 应用配置
@@ -136,12 +135,21 @@ app.include_router(kb_router)        # 知识库管理路由
 @app.on_event("startup")
 async def startup_event():
     """应用启动时的初始化"""
+    global minio_client
     logger.info("🚀 Starting Zenow Backend...")
 
     # 启动 MinIO 服务
     try:
         if minio_server.start():
             logger.info("✅ MinIO server started")
+            # 初始化 MinIO 客户端
+            try:
+                minio_client = MinioClient()
+                # 更新知识库路由的依赖
+                set_kb_dependencies(db_kb, minio_client)
+                logger.info("✅ MinIO client initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ MinIO client initialization failed: {e}, continuing without file storage")
         else:
             logger.warning("⚠️ MinIO server failed to start, continuing without file storage")
     except Exception as e:

@@ -34,4 +34,6 @@
     kb_docs = client.get_or_create_collection("kb_docs")
     kb_code = client.get_or_create_collection("kb_code")
     kb_faq  = client.get_or_create_collection("kb_faq")
-    实现知识库
+    实现知识库的向量存储和搜索相关的功能。
+    - 知识库头像存到minio中，以知识库名字命名，区分于正常文件上传空间，以另一个bucket名字
+    - 如果涉及到多知识库内容，
