@@ -14,14 +14,18 @@ from routers import (
     models_router,
     sessions_router,
     chat_router,
-    system_router
+    system_router,
+    kb_router
 )
+from routers.knowledge_base import set_dependencies as set_kb_dependencies
 
 # 导入核心组件
 from spacemit_llm.model.server_manager import ModelServerManager
 from spacemit_llm.model.download import ModelDownloader
 from spacemit_llm.comon.sqlite.sqlite_config import SQLiteConfig
 from spacemit_llm.comon.sqlite.sqlite_session import SQLiteSession
+from spacemit_llm.comon.sqlite.sqlit_kb import SQLiteKnowledgeBase
+from spacemit_llm.comon.minio import MinioServer, MinioClient
 from spacemit_llm.pipeline.model_select import ModelSelectionPipeline
 from spacemit_llm.pipeline.backend_start import BackendStartupHandler
 from spacemit_llm.pipeline.model_param_change import ModelParameterChangePipeline
@@ -40,6 +44,11 @@ logger = logging.getLogger(__name__)
 # 数据库
 db_config = SQLiteConfig(config.DB_CONFIG_PATH)
 db_session = SQLiteSession(config.DB_SESSION_PATH)
+db_kb = SQLiteKnowledgeBase()
+
+# MinIO 服务
+minio_server = MinioServer()
+minio_client = MinioClient()
 
 # 模型服务器管理
 server_manager = ModelServerManager()
@@ -91,6 +100,9 @@ sessions_router.db_session = db_session
 # 设置 chat router 的全局变量
 chat_router.chat_pipeline = chat_pipeline
 
+# 设置 knowledge base router 的依赖
+set_kb_dependencies(db_kb, minio_client)
+
 # ============================================================================
 # FastAPI 应用配置
 # ============================================================================
@@ -115,6 +127,7 @@ app.include_router(system_router)    # 系统路由（包含根路径和健康�
 app.include_router(models_router)    # 模型管理路由
 app.include_router(sessions_router)  # 会话管理路由
 app.include_router(chat_router)      # 聊天路由
+app.include_router(kb_router)        # 知识库管理路由
 
 # ============================================================================
 # 应用生命周期事件
@@ -124,6 +137,15 @@ app.include_router(chat_router)      # 聊天路由
 async def startup_event():
     """应用启动时的初始化"""
     logger.info("🚀 Starting Zenow Backend...")
+
+    # 启动 MinIO 服务
+    try:
+        if minio_server.start():
+            logger.info("✅ MinIO server started")
+        else:
+            logger.warning("⚠️ MinIO server failed to start, continuing without file storage")
+    except Exception as e:
+        logger.warning(f"⚠️ MinIO startup error: {e}, continuing without file storage")
 
     # 写入端口文件
     write_port_file(config.API_SERVER_PORT)
@@ -146,6 +168,13 @@ async def shutdown_event():
         logger.warning(f"Async cleanup failed: {e}, trying synchronous cleanup")
         server_manager.stop_all_sync()
         logger.info("✓ All llama-server processes stopped (sync)")
+
+    # 停止 MinIO 服务
+    try:
+        minio_server.stop()
+        logger.info("✓ MinIO server stopped")
+    except Exception as e:
+        logger.warning(f"MinIO shutdown error: {e}")
 
     # 清理端口文件
     cleanup_port_file()
