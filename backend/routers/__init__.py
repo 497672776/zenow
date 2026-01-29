@@ -4,10 +4,10 @@ FastAPI Routers Package
 Exports all API routers for the Zenow backend.
 """
 
-from .system import system_router
-from .models import models_router
-from .sessions import sessions_router
-from .chat import chat_router
+from .system import router as system_router
+from .models import router as models_router
+from .sessions import router as sessions_router
+from .chat import router as chat_router
 from .knowledge_base import kb_router
 
 __all__ = [

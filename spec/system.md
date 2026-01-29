@@ -28,3 +28,10 @@
     - 知识库名、简介、描述用数据库保存，可以用,后台服务组件写在：/home/liudecheng/zenow-test/zenow/backend/spacemit_llm/comon/sqlite/sqlit_kb.py
     - 知识库里面有什么文件，文件上传时间等也是在sqlit_kb.py里面写，所以你要做几个表，一个是知识库列表，一个是每个知识库详情。
     - 同个名字的文件上传就是覆盖，然后更新文件上传时间即可
+- 新增
+    - rag的基本组件写在：/home/liudecheng/zenow-test/zenow/backend/spacemit_llm/rag，具体怎么写，我加了parser和splitter，你觉得不够可以继续加，然后使用import chromadb
+    client = chromadb.Client()
+    kb_docs = client.get_or_create_collection("kb_docs")
+    kb_code = client.get_or_create_collection("kb_code")
+    kb_faq  = client.get_or_create_collection("kb_faq")
+    实现知识库
