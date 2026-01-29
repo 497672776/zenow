@@ -14,8 +14,10 @@ Endpoints for managing knowledge bases and files:
 
 import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
+from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from datetime import datetime
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,17 @@ async def list_knowledge_bases():
     """List all knowledge bases."""
     try:
         kbs = await db_kb.list_knowledge_bases()
+
+        # Convert avatar_url to backend proxy URL if exists
+        for kb in kbs:
+            if kb.get('avatar_url'):
+                try:
+                    # Use backend proxy endpoint to avoid CORS issues
+                    kb['avatar_url'] = f"/api/knowledge-bases/avatars/{kb['name']}"
+                except Exception as e:
+                    logger.warning(f"Failed to generate URL for avatar: {kb.get('avatar_url')} - {e}")
+                    kb['avatar_url'] = None
+
         return {
             "success": True,
             "knowledge_bases": kbs,
@@ -105,6 +118,16 @@ async def create_knowledge_base(
         )
 
         kb = await db_kb.get_knowledge_base(kb_id)
+
+        # Convert avatar_url to backend proxy URL if exists
+        if kb.get('avatar_url'):
+            try:
+                # Use backend proxy endpoint to avoid CORS issues
+                kb['avatar_url'] = f"/api/knowledge-bases/avatars/{kb['name']}"
+            except Exception as e:
+                logger.warning(f"Failed to generate URL for avatar: {kb.get('avatar_url')} - {e}")
+                kb['avatar_url'] = None
+
         return {
             "success": True,
             "message": f"Knowledge base '{name}' created successfully",
@@ -137,6 +160,15 @@ async def get_knowledge_base(kb_id: int):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Knowledge base {kb_id} not found"
             )
+
+        # Convert avatar_url to backend proxy URL if exists
+        if kb.get('avatar_url'):
+            try:
+                # Use backend proxy endpoint to avoid CORS issues
+                kb['avatar_url'] = f"/api/knowledge-bases/avatars/{kb['name']}"
+            except Exception as e:
+                logger.warning(f"Failed to generate URL for avatar: {kb.get('avatar_url')} - {e}")
+                kb['avatar_url'] = None
 
         return {
             "success": True,
@@ -203,7 +235,7 @@ async def update_knowledge_base(
 
 @kb_router.delete("/{kb_id}")
 async def delete_knowledge_base(kb_id: int):
-    """Delete knowledge base (cascades to files)."""
+    """Delete knowledge base by ID (cascades to files)."""
     try:
         # Check if KB exists
         kb = await db_kb.get_knowledge_base(kb_id)
@@ -214,6 +246,51 @@ async def delete_knowledge_base(kb_id: int):
             )
 
         kb_name = kb["name"]
+
+        # Delete all files from MinIO
+        if minio_client:
+            try:
+                prefix = f"{kb_name}/"
+                await minio_client.delete_folder(prefix)
+            except Exception as e:
+                logger.warning(f"Failed to delete files from MinIO: {e}")
+
+        # Delete KB from database (cascades to files)
+        success = await db_kb.delete_knowledge_base(kb_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete knowledge base"
+            )
+
+        return {
+            "success": True,
+            "message": f"Knowledge base '{kb_name}' deleted successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete knowledge base: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@kb_router.delete("/by-name/{kb_name}")
+async def delete_knowledge_base_by_name(kb_name: str):
+    """Delete knowledge base by name (cascades to files)."""
+    try:
+        # Check if KB exists
+        kb = await db_kb.get_knowledge_base_by_name(kb_name)
+        if not kb:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Knowledge base '{kb_name}' not found"
+            )
+
+        kb_id = kb["id"]
 
         # Delete all files from MinIO
         if minio_client:
@@ -392,6 +469,67 @@ async def delete_file(kb_id: int, file_id: int):
         raise
     except Exception as e:
         logger.error(f"Failed to delete file: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# ============================================================================
+# Avatar Proxy Endpoint
+# ============================================================================
+
+@kb_router.get("/avatars/{kb_name}")
+async def get_avatar(kb_name: str):
+    """Proxy endpoint to serve KB avatars (solves CORS issues)."""
+    try:
+        if not minio_client:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="MinIO client not available"
+            )
+
+        # Get KB to verify it exists
+        kb = await db_kb.get_knowledge_base_by_name(kb_name)
+        if not kb:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Knowledge base '{kb_name}' not found"
+            )
+
+        if not kb.get('avatar_url'):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Knowledge base '{kb_name}' has no avatar"
+            )
+
+        # Download avatar from MinIO
+        avatar_path = kb['avatar_url']  # e.g., "avatars/test.png"
+        file_content = await minio_client.download_file(avatar_path)
+
+        # Determine content type from file extension
+        content_type = "image/png"
+        if avatar_path.lower().endswith('.jpg') or avatar_path.lower().endswith('.jpeg'):
+            content_type = "image/jpeg"
+        elif avatar_path.lower().endswith('.gif'):
+            content_type = "image/gif"
+        elif avatar_path.lower().endswith('.webp'):
+            content_type = "image/webp"
+
+        # Return image as streaming response
+        return StreamingResponse(
+            io.BytesIO(file_content),
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=86400",  # Cache for 1 day
+                "Access-Control-Allow-Origin": "*"  # Allow CORS
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to serve avatar: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

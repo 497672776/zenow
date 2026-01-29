@@ -127,6 +127,19 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = ({
           formData.append('avatar', avatarFile)
         }
 
+        // 调试日志
+        console.log('📤 发送创建知识库请求:', {
+          name: newName,
+          description: description.trim(),
+          hasAvatar: !!avatarFile,
+          url: `${baseUrl}/api/knowledge-bases`
+        })
+
+        // 打印 FormData 内容
+        for (let pair of formData.entries()) {
+          console.log('  -', pair[0], ':', pair[1])
+        }
+
         // 发送请求
         const response = await fetch(`${baseUrl}/api/knowledge-bases`, {
           method: 'POST',
@@ -134,9 +147,17 @@ const CreateKnowledgeBaseModal: React.FC<CreateKnowledgeBaseModalProps> = ({
           // 注意：不要设置 Content-Type，浏览器会自动设置为 multipart/form-data
         })
 
+        console.log('📥 响应状态:', response.status, response.statusText)
+
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.detail || '创建知识库失败')
+          const errorText = await response.text()
+          console.error('❌ 创建失败 (原始响应):', errorText)
+          try {
+            const errorData = JSON.parse(errorText)
+            throw new Error(errorData.detail || '创建知识库失败')
+          } catch (e) {
+            throw new Error(errorText || '创建知识库失败')
+          }
         }
 
         const result = await response.json()

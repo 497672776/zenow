@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import CreateKnowledgeBaseModal from '../components/CreateKnowledgeBaseModal'
+import { getBackendBaseUrl } from '../utils/backendPort'
 
 // 知识库图标
 import kbIcon5 from '../assets/kb-icon-5.png'
@@ -45,29 +46,22 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
   const loadKnowledgeBases = async () => {
     setLoading(true)
     try {
-      // TODO: 替换为实际的API调用
       console.log('📡 正在加载知识库列表...')
-      // 模拟API响应
-      const mockData = {
-        knowledge_bases: [
-          {
-            id: '1',
-            name: '示例知识库',
-            description: '这是一个示例知识库',
-            doc_count: 5,
-            total_size: 1024000,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            avatar_url: undefined
-          }
-        ]
+
+      const baseUrl = await getBackendBaseUrl()
+      const response = await fetch(`${baseUrl}/api/knowledge-bases`)
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
-      if (mockData?.knowledge_bases) {
-        console.log(`✅ 成功加载 ${mockData.knowledge_bases.length} 个知识库`)
-        setKnowledgeBases(mockData.knowledge_bases)
+      const data = await response.json()
+
+      if (data.success && data.knowledge_bases) {
+        console.log(`✅ 成功加载 ${data.knowledge_bases.length} 个知识库`)
+        setKnowledgeBases(data.knowledge_bases)
       } else {
-        console.warn('⚠️ 响应中没有 knowledge_bases 字段:', mockData)
+        console.warn('⚠️ 响应格式不正确:', data)
         setKnowledgeBases([])
       }
     } catch (error) {
@@ -135,19 +129,31 @@ const KnowledgeBaseOverviewPage: React.FC<KnowledgeBaseOverviewPageProps> = ({ o
     if (!deleteConfirm.kbName) return
 
     const kbName = deleteConfirm.kbName
+    const kbTitle = deleteConfirm.kbTitle
     setDeleteConfirm({ show: false, kbName: null, kbTitle: '' })
 
     try {
-      console.log(`🗑️ 正在删除知识库: "${kbName}"`)
-      // TODO: 替换为实际的API调用
-      console.log(`✅ 删除请求成功`)
+      console.log(`🗑️ 正在删除知识库: "${kbTitle}"`)
+
+      const baseUrl = await getBackendBaseUrl()
+      const response = await fetch(`${baseUrl}/api/knowledge-bases/by-name/${encodeURIComponent(kbName)}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || '删除失败')
+      }
+
+      const result = await response.json()
+      console.log(`✅ 删除成功:`, result)
 
       console.log(`📡 删除完成，现在刷新知识库列表...`)
       await loadKnowledgeBases()
       console.log(`✅ 列表已刷新`)
     } catch (error) {
       console.error('❌ 删除知识库失败:', error)
-      alert('删除失败')
+      alert(`删除失败: ${error instanceof Error ? error.message : '未知错误'}`)
     }
   }
 

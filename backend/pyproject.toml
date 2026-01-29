@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Backend API for Zenow LLM Chat"
 requires-python = "==3.12.11"
 dependencies = [
-    "fastapi>=0.104.0",
+    "fastapi==0.115.0",
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.5.0",
     "openai>=1.3.0",
