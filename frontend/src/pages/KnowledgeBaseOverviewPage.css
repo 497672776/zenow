@@ -1,0 +1,396 @@
+/* DatasetList Container */
+.dataset-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  background-color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Main Content - Scrollable Area */
+.dataset-list-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 60px;
+  min-height: 0;
+  max-height: calc(100vh - 60px);
+  -webkit-app-region: no-drag;
+}
+
+/* Centered Content Container (848px) */
+.dataset-list-container {
+  display: flex;
+  justify-content: center;
+  padding-top: 0;
+  padding-bottom: 16px;
+}
+
+.dataset-list-wrapper {
+  width: 848px;
+}
+
+/* Section Header */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0d0d0d;
+  line-height: 30px;
+  margin: 0;
+}
+
+/* Create Button */
+.create-kb-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  border-radius: 32px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.create-kb-button:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.create-kb-icon {
+  width: 16px;
+  height: 16px;
+  background-color: #b0e237;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.create-kb-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: black;
+  line-height: 20px;
+}
+
+/* KB Grid */
+.dataset-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  padding-bottom: 40px;
+}
+
+/* KB Card */
+.dataset-card {
+  width: 272px;
+  border: 1px solid #f9f9fa;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+.dataset-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dataset-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px 17px 22px;
+  width: 272px;
+}
+
+.dataset-card-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+/* Avatar */
+.dataset-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.2s ease;
+}
+
+.dataset-card:hover .dataset-avatar {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.dataset-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* KB Info */
+.dataset-info {
+  flex: 1;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+.dataset-info-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dataset-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #0d0d0d;
+  line-height: normal;
+  height: 21px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.dataset-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5);
+  line-height: normal;
+}
+
+.dataset-meta p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Menu Button */
+.dataset-menu-wrapper {
+  flex-shrink: 0;
+}
+
+.dataset-menu-button {
+  padding: 4px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.dataset-menu-button:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Menu Dropdown */
+.dataset-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  min-width: 160px;
+}
+
+.dataset-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: black;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dataset-menu-item:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.dataset-menu-item:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.dataset-menu-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+.dataset-menu-item.delete {
+  color: #ff4d4f;
+}
+
+.dataset-menu-item img {
+  width: 16px;
+  height: 16px;
+}
+
+/* Delete Confirmation Modal */
+.delete-confirm-modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.delete-confirm-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08),
+              0 3px 6px -4px rgba(0, 0, 0, 0.12),
+              0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  width: 360px;
+  overflow: hidden;
+  position: relative;
+}
+
+.delete-confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 8px;
+}
+
+.delete-confirm-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 0;
+}
+
+.delete-confirm-close {
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.delete-confirm-close:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.delete-confirm-close span {
+  font-size: 18px;
+}
+
+.delete-confirm-content {
+  padding: 0 24px 16px;
+}
+
+.delete-confirm-text {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 0;
+}
+
+.delete-confirm-kb-name {
+  font-weight: 500;
+}
+
+.delete-confirm-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 20px 24px;
+}
+
+.delete-confirm-button {
+  height: 32px;
+  padding: 0 24px;
+  border-radius: 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-confirm-button.cancel {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: white;
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: normal;
+}
+
+.delete-confirm-button.cancel:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.delete-confirm-button.delete {
+  border: none;
+  background-color: #ff4d4f;
+  color: white;
+  font-weight: 500;
+}
+
+.delete-confirm-button.delete:hover {
+  opacity: 0.9;
+}
+
+/* Loading State */
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 160px);
+}
+
+.loading-text {
+  font-size: 18px;
+  color: #666;
+  text-align: center;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 160px);
+  color: #999;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-state-text {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.empty-state-hint {
+  font-size: 12px;
+  color: #ccc;
+}

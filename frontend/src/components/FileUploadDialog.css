@@ -154,7 +154,7 @@
 
 .file-upload-progress-fill {
   height: 100%;
-  background-color: #2196f3;
+  background-color: #b0e237;
   transition: width 0.3s ease;
 }
 
@@ -189,12 +189,12 @@
 }
 
 .file-upload-button.submit {
-  background-color: #2196f3;
-  color: white;
+  background-color: #b0e237;
+  color: #000;
 }
 
 .file-upload-button.submit:hover {
-  background-color: #1976d2;
+  background-color: #9ed020;
 }
 
 .file-upload-button.submit:disabled {

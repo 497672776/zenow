@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import './FileUploadDialog.css'
 
 interface FileUploadDialogProps {
@@ -53,14 +53,14 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-[500px] max-h-[600px] overflow-hidden">
+    <div className="file-upload-dialog-overlay">
+      <div className="file-upload-dialog">
         {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">上传文档</h3>
+        <div className="file-upload-header">
+          <h3 className="file-upload-title">上传文档</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="file-upload-close"
             disabled={uploading}
           >
             ✕
@@ -68,39 +68,37 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
         </div>
 
         {/* 内容 */}
-        <div className="p-6">
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-2">
-              上传到知识库: <span className="font-medium">{kbName}</span>
-            </p>
+        <div className="file-upload-content">
+          <div className="file-upload-kb-name">
+            上传到知识库: <strong>{kbName}</strong>
           </div>
 
           {/* 文件选择 */}
-          <div className="mb-6">
+          <div className="file-upload-input-group">
             <input
               type="file"
               multiple
               accept=".pdf,.doc,.docx,.txt,.md"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="file-upload-input"
               disabled={uploading}
             />
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="file-upload-hint">
               支持 PDF、Word、文本文件等格式
             </p>
           </div>
 
           {/* 选中的文件列表 */}
           {selectedFiles.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">
+            <div className="file-upload-list">
+              <h4 className="file-upload-list-title">
                 已选择 {selectedFiles.length} 个文件:
               </h4>
-              <div className="max-h-32 overflow-y-auto space-y-2">
+              <div className="file-upload-list-items">
                 {selectedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700 truncate">{file.name}</span>
-                    <span className="text-gray-500 ml-2">{formatFileSize(file.size)}</span>
+                  <div key={index} className="file-upload-list-item">
+                    <span className="file-upload-list-item-name">{file.name}</span>
+                    <span className="file-upload-list-item-size">{formatFileSize(file.size)}</span>
                   </div>
                 ))}
               </div>
@@ -109,14 +107,14 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
 
           {/* 上传进度 */}
           {uploading && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-700">上传进度</span>
-                <span className="text-gray-500">{uploadProgress}%</span>
+            <div className="file-upload-progress">
+              <div className="file-upload-progress-label">
+                <span>上传进度</span>
+                <span>{uploadProgress}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="file-upload-progress-bar">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="file-upload-progress-fill"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -125,17 +123,17 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
         </div>
 
         {/* 底部按钮 */}
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className="file-upload-footer">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            className="file-upload-button cancel"
             disabled={uploading}
           >
             取消
           </button>
           <button
             onClick={handleUpload}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="file-upload-button submit"
             disabled={selectedFiles.length === 0 || uploading}
           >
             {uploading ? '上传中...' : '开始上传'}
